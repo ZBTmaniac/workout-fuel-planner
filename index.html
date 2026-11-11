@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#151F29">
-<meta name="description" content="Carb, fluid and sodium targets for single workouts and a training week. Runs offline; your data stays on your device.">
+<meta name="description" content="Exact carbs, fluid and sodium for each workout, plus weekly drink-mix and gel recipes. Runs offline; your data stays on your device.">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-180.png">
@@ -43,6 +43,24 @@
   color-scheme:dark}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
+input[type=range]{width:100%;accent-color:var(--accent);min-height:28px}
+.ends{display:flex;justify-content:space-between;font-size:12px;color:var(--muted)}
+.fuel{margin-top:14px;display:flex;flex-direction:column;gap:10px}
+.fuel-i{display:grid;grid-template-columns:40px minmax(0,1fr);gap:12px;align-items:start;padding:12px;border-radius:8px;background:var(--surface-2)}
+.fuel-i .ic{width:40px;height:40px;border-radius:8px;display:grid;place-items:center;font-family:var(--font-display);font-weight:700;font-size:18px;color:var(--accent-ink)}
+.fuel-i h4{margin:0;font-size:15px;font-weight:600}
+.fuel-i p{font-size:13px;color:var(--muted)}
+.fuel-i .rec{font-size:13px;margin-top:4px;color:var(--ink)}
+.prefs{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px 20px}
+.recipes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+@media (max-width:760px){.recipes{grid-template-columns:minmax(0,1fr)}}
+.recipe{border:1px solid var(--line);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:8px}
+.recipe ul,.recipe ol{margin:0;padding-left:18px;font-size:13.5px;display:flex;flex-direction:column;gap:3px}
+.recipe li{font-variant-numeric:tabular-nums}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--muted)}
+.bars .stk{display:flex;flex-direction:column-reverse;width:100%;max-width:42px;border-radius:4px 4px 0 0;overflow:hidden}
+.daytot{display:flex;justify-content:space-between;align-items:baseline;background:var(--surface-2);border-radius:6px;padding:8px 10px;font-size:13px}
+.daytot b{font-size:18px;font-variant-numeric:tabular-nums}
 body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:14px;line-height:1.5}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
 .wrap{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
@@ -209,7 +227,7 @@ th{font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--mu
   <div class="wrap">
     <div class="brand">
       <div class="tile" aria-hidden="true"><small>11</small><b>Na</b><small>22.99</small></div>
-      <div><h1>Workout Fuel Planner</h1><p>Carbs, fluid and sodium for one session or a full training week</p></div>
+      <div><h1>Workout Fuel Planner</h1><p>Exact carbs, fluid and sodium for each workout, plus your week’s recipes</p></div>
     </div>
     <div class="top-actions">
       <span id="saveChip" class="chip">Loading…</span>
@@ -242,6 +260,7 @@ th{font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--mu
         <div class="f"><label for="s-temp" id="s-temp-l">Temp (°F)</label><input type="number" id="s-temp" inputmode="decimal"></div>
         <div class="f"><label for="s-hum">Humidity</label><select id="s-hum"></select></div>
       </div>
+      <div class="f"><label for="s-pref">Carbs from: <span id="s-pref-v" style="text-transform:none;letter-spacing:0"></span></label><input type="range" id="s-pref" min="0" max="100" step="10"><div class="ends"><span>All gels</span><span>All drink</span></div><div class="hint">Saved for this sport. Change all of them on the Week tab.</div></div>
       <div>
         <span class="lbl">Structure</span>
         <div class="seg" role="group" aria-label="Structure">
@@ -276,6 +295,7 @@ th{font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--mu
 <!-- WEEK -->
 <section id="p-week" data-panel="week" class="stack" hidden>
   <div id="exWeekBanner" class="banner" hidden><span>This is an example week built around two strength days and an easy aerobic base. Swap in your own sessions.</span><button type="button" class="btn small" id="clearWeek">Clear the example</button></div>
+  <div class="card stack"><div><h2>How you take carbs</h2><p class="muted">Set the split for each sport. Workouts and recipes follow it.</p></div><div class="prefs" id="prefBox"></div></div>
   <div id="weekSummary"></div>
   <div class="days" id="days"></div>
 </section>
@@ -383,15 +403,10 @@ th{font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--mu
     </tbody></table></div>
     <p>Above 60 g/h the mix recipe switches to glucose (maltodextrin) plus fructose at about 1 : 0.8. Your gut absorbs the two through different routes, so you can take in more.</p>
 
-    <h3>Daily carbs</h3>
-    <p>From the ACSM / Academy of Nutrition and Dietetics / Dietitians of Canada joint position on nutrition and athletic performance (Thomas, Erdman &amp; Burke, 2016). Protein is set at 1.4–1.6 g/kg (higher on strength days), inside their 1.2–2.0 g/kg range.</p>
-    <div class="tbl-wrap"><table class="method-tbl"><thead><tr><th>Training that day</th><th>Carbs, g per kg body weight</th></tr></thead><tbody>
-      <tr><td>Rest or under 45 min</td><td>3–5</td></tr>
-      <tr><td>45–90 min</td><td>5–7</td></tr>
-      <tr><td>1.5–3 h</td><td>6–10</td></tr>
-      <tr><td>3–4.5 h</td><td>7–10</td></tr>
-      <tr><td>Over 4.5 h</td><td>8–12</td></tr>
-    </tbody></table></div>
+    <h3>Turning it into a number</h3>
+    <p>Total carbs = carbs per hour × workout length, rounded to the nearest 5 g. A 90-minute ride at 60 g/h is 90 g.</p>
+    <p>The split slider for each sport decides how much of that comes from drink and how much from gels. Gels are counted at 25 g each and spaced from about 20 minutes in to 15 minutes before the end. The number of bottles matches your fluid needs, and the drink carbs are divided evenly between them.</p>
+    <p>Drink mix and gels both use maltodextrin and fructose at about 1 : 0.8. Gels use about 0.56 g water per gram of carbs, close to the thickness of a commercial gel (around 60–65% carbs). Sodium in gels is capped at 200 mg each to keep them palatable; anything beyond that is flagged so you can add capsules.</p>
 
     <h3>Sweat rate</h3>
     <p>Your baseline, from the 1–4 description, a number you know, or your logged tests, is for a steady run in mild weather. It's then scaled by:</p>
@@ -457,7 +472,7 @@ const fmt=n=>Math.round(n).toLocaleString('en-US');
 /* ---------- state ---------- */
 function exampleWeek(){
   const s=(sport,minutes,zone,tempF)=>({id:uid(),sport,minutes,zone,tempF:tempF??60,humidity:'normal'});
-  return [[s('strength',60,3,68)],[s('run',50,2)],[s('trainer',60,2,68)],[s('strength',60,3,68)],[],[s('run',120,2)],[s('bike',150,2)]];
+  return [[s('strength',60,3,68)],[s('run',50,2)],[s('trainer',75,3,68)],[s('strength',60,3,68)],[],[s('run',90,2)],[s('bike',150,2)]];
 }
 function exampleSegments(){
   return [
@@ -581,7 +596,6 @@ function compute(sess){
   if(sport==='swim')N.push({t:'You can’t really fuel while swimming. Eat beforehand and drink as soon as you get out.'});
   if(min>=45&&min<75&&carb.target===0&&zAvg>=2)N.push({t:'If the session feels flat, 15–30 g of carbs or a sports-drink mouth rinse can help on harder 45–75 min efforts.'});
   if(defPct>2)N.push({w:1,t:`Projected loss is about ${defPct.toFixed(1)}% of body weight (${fmt(wtOut(deficit))} ${wtU()}). Above 2% performance usually suffers. Drink a little more if your stomach allows, or plan a refill.`});
-  if(out.bottle&&out.bottle.pct>8)N.push({t:`Putting all ${carb.target} g/h in ${out.bottle.bph<1.05?'one bottle':'your bottles'} would be a ${out.bottle.pct.toFixed(0)}% solution, which is thick and slow to absorb. Keep bottles near 7% and take about ${out.bottle.gelsPerH.toFixed(1)} gels (25 g each) per hour.`});
   if((na.mgL>=1200||p.salt>=4)&&(min>=120||hot)&&sport!=='swim')N.push({t:'As a salty sweater, consider a sodium pre-load: about 1,000–1,500 mg in 500 mL, 60–90 min before. Try it in training first.'});
   if(sr>1.5)N.push({t:`At ~${fl(sr)}/h you’re a heavy sweater today. Weigh yourself before and after to check, and log it under Sweat tests.`});
   if(hot&&min>=60)N.push({t:'Hot conditions push sweat losses up fast. Start well hydrated and front-load drinking a little.'});
@@ -591,18 +605,11 @@ function compute(sess){
   return out;
 }
 function dayPlan(sessions){
-  const wt=state.profile.weightKg||75;
-  const c=sessions.map(s=>({s,r:compute(Object.assign({mode:'steady'},s))})).filter(x=>x.r);
-  const min=c.reduce((a,x)=>a+x.r.min,0);
-  const load=c.reduce((a,x)=>a+x.r.min*(x.s.sport==='strength'?0.5:1),0);
-  const zAvg=min?c.reduce((a,x)=>a+x.r.zAvg*x.r.min,0)/min:1;
-  let band=load<45?[3,5]:load<90?[5,7]:load<180?[6,10]:load<270?[7,10]:[8,12];
-  const s=load<45?0.4:clamp((zAvg-1.5)/2.5,0,1);
-  const gkg=band[0]+(band[1]-band[0])*(0.2+0.6*s);
-  const strength=sessions.some(x=>x.sport==='strength'||x.sport==='hyrox');
-  return{c,min,band,gkg,carbs:gkg*wt,protein:(strength?1.6:1.4)*wt,during:c.reduce((a,x)=>a+x.r.carbTotal,0),na:c.reduce((a,x)=>a+x.r.naTotal,0),fluid:c.reduce((a,x)=>a+x.r.fluidTotal,0),two:c.length>1&&min>=90};
+  const c=sessions.map(s=>{const r=compute(Object.assign({mode:'steady'},s));return r?{s,r,fp:fuelPlan(r)}:null}).filter(Boolean);
+  const sum=k=>c.reduce((a,x)=>a+x.fp[k],0);
+  return{c,min:c.reduce((a,x)=>a+x.r.min,0),total:sum('total'),drinkC:sum('drinkC'),gelGrams:sum('gelGrams'),gels:sum('gels'),bottles:sum('bottles'),
+    naDrink:sum('naDrink'),naGelSalt:c.reduce((a,x)=>a+x.fp.naPerGel*x.fp.gels,0),na:sum('naT'),fluid:c.reduce((a,x)=>a+x.r.fluidTotal,0)};
 }
-
 /* ---------- persistence ---------- */
 let docRef=null,saveTimer=null,writing=false,pending=false,acct=false;
 function chip(){
@@ -682,40 +689,79 @@ function renderSegs(){
       <div class="resolved" data-res>${segResolvedText(sg)}</div>
     </div>`}).join('');
 }
+const DEFAULT_PREF={run:0,bike:100,trainer:100,hyrox:0,other:0,swim:0,strength:0};
+const PREF_SPORTS=['run','bike','trainer','hyrox','other'];
+const GEL_WATER=0.56; // g water per g carbs: about the thickness of a commercial gel
+function prefOf(sport){const p=state.profile.fuelPref||{};const v=p[sport];return clamp((v==null?(DEFAULT_PREF[sport]||0):v),0,100)}
+function prefLabel(v){return v===0?'all gels':v===100?'all drink':`${100-v}% gels / ${v}% drink`}
+function fuelPlan(r){
+  const total=r.carb.target>0?r5(r.carb.target*r.h):0;
+  const f=prefOf(r.sport)/100;
+  const drinkC=Math.round(total*f), gelC=total-drinkC;
+  const gels=gelC>0?Math.max(1,Math.round(gelC/GEL)):0;
+  const bL=bottleMl()/1000, fluidBottles=Math.round(r.fluidTotal/bL);
+  const bottles=drinkC>0?Math.max(1,fluidBottles,Math.ceil(drinkC/(0.12*bottleMl()))):0;
+  const waterBottles=Math.max(0,fluidBottles-bottles);
+  const perBottle=bottles?drinkC/bottles:0, pctB=bottles?perBottle/bottleMl()*100:0;
+  const naT=r50(r.naTotal);
+  let naDrink=0,naGel=0;
+  if(bottles&&gels){naDrink=naT*f;naGel=naT-naDrink}else if(bottles)naDrink=naT;else if(gels)naGel=naT;
+  const naPerGel=gels?Math.min(200,naGel/gels):0;
+  const naWater=(!bottles&&!gels)?naT:0;
+  const naShort=Math.max(0,naGel-naPerGel*gels);
+  const times=[];
+  if(gels===1)times.push(Math.round(clamp(r.min*0.45,15,Math.max(15,r.min-15))));
+  else if(gels>1){const a=Math.min(20,r.min*0.2),b=Math.max(a,r.min-15),st=(b-a)/(gels-1);for(let i=0;i<gels;i++)times.push(Math.round(a+st*i))}
+  return{total,drinkC,gelC,gels,gelGrams:gels*GEL,bottles,waterBottles,perBottle,pctB,naT,naPerBottle:bottles?naDrink/bottles:0,naDrink,naGel,naPerGel,naWater,naShort,times};
+}
+function mixG(carbs){return{m:carbs/1.8,f:carbs*0.8/1.8}}
 function renderSessionOut(){
   const s=state.session,r=compute(s),el=$('#sessionOut');
   $('#s-zone-h').textContent=zoneHint(s.zone,s.sport);
   $('#exProfileBanner').hidden=!state.profile.example;
+  const pv=prefOf(s.sport);$('#s-pref').value=pv;$('#s-pref-v').textContent=prefLabel(pv);
   if(!r){el.innerHTML='<div class="empty">Add a duration or at least one block to see fueling.</div>';return}
+  const fp=fuelPlan(r);
   const zbar=[1,2,3,4,5].map(i=>r.z[i]?`<span style="width:${r.z[i]/r.min*100}%;background:var(--z${i})" title="${ZONES[i].n}: ${fmt(r.z[i])} min"></span>`:'').join('');
   const zleg=[1,2,3,4,5].filter(i=>r.z[i]).map(i=>`<span><i class="zdot" style="background:var(--z${i})"></i>${ZONES[i].n} ${fmt(r.z[i])} min</span>`).join('');
   const hrs=r.min>=60?`${Math.floor(r.min/60)} h ${String(Math.round(r.min%60)).padStart(2,'0')}`:`${fmt(r.min)} min`;
-  let mix='';
-  if(r.bottle){const b=r.bottle,inB=Math.min(b.cpb,b.keep),m=b.split?inB/1.8:inB,f=b.split?inB*0.8/1.8:0;
-    mix=`<div class="mix"><span class="lbl">Per ${imp()?'24 oz':'750 mL'} bottle · about ${b.bph.toFixed(1)} per hour</span>
-    ${inB>0?`${fmt(inB)} g carbs (${(inB/bottleMl()*100).toFixed(1)}%)`:'No carbs'}${b.napb>0?` + ${fmt(b.napb)} mg sodium`:''}${b.gelsPerH>0.05&&b.pct>8?` · plus ${b.gelsPerH.toFixed(1)} gels/h`:''}
-    <div class="hint">DIY: ${inB>0?(b.split?`${m.toFixed(0)} g maltodextrin + ${f.toFixed(0)} g fructose`:`${m.toFixed(0)} g maltodextrin or sugar`):'plain water'}${b.napb>0?` + ${(b.napb/393).toFixed(2)} g table salt`:''}</div></div>`}
+  const bName=imp()?'24 oz bottle':'750 mL bottle';
+  const items=[];
+  if(fp.gels){
+    items.push(`<div class="fuel-i"><span class="ic" style="background:var(--carb)">${fp.gels}</span><div><h4>${fp.gels} gel${fp.gels>1?'s':''} · ${fp.gelGrams} g carbs</h4>
+      <p>Take at ${fp.times.map(t=>t+' min').join(', ')}</p>
+      ${fp.naPerGel>0?`<p class="rec">${fmt(fp.naPerGel)} mg sodium per gel. Homemade: ${(fp.naPerGel/393).toFixed(2)} g salt per gel.</p>`:''}</div></div>`)}
+  if(fp.bottles){
+    const g=mixG(fp.perBottle);
+    items.push(`<div class="fuel-i"><span class="ic" style="background:var(--fluid)">${fp.bottles}</span><div><h4>${fp.bottles} ${bName}${fp.bottles>1?'s':''} · ${fmt(fp.perBottle)} g carbs each</h4>
+      <p>${fp.naPerBottle>0?fmt(fp.naPerBottle)+' mg sodium each · ':''}${fp.pctB.toFixed(1)}% solution</p>
+      <p class="rec">Per bottle: ${fmt(g.m)} g maltodextrin + ${fmt(g.f)} g fructose${fp.naPerBottle>0?` + ${(fp.naPerBottle/393).toFixed(2)} g salt`:''}, topped up with water.</p></div></div>`)}
+  if(fp.waterBottles)items.push(`<div class="fuel-i"><span class="ic" style="background:var(--z1)">${fp.waterBottles}</span><div><h4>${fp.waterBottles} more ${bName}${fp.waterBottles>1?'s':''} of water</h4><p>To reach about ${fl(r.fluidTotal)} total.</p></div></div>`);
+  if(!fp.bottles&&!fp.waterBottles&&r.fluidTotal>0)items.push(`<div class="fuel-i"><span class="ic" style="background:var(--z1)">H₂O</span><div><h4>${fl(r.fluidTotal)} of water</h4><p>About ${fl(r.fluid)} per hour.</p></div></div>`);
+  if(fp.naWater>0)items.push(`<div class="fuel-i"><span class="ic" style="background:var(--sodium)">Na</span><div><h4>${fmt(fp.naWater)} mg sodium</h4><p>Add ${(fp.naWater/393).toFixed(2)} g salt to your water, or take a salt capsule.</p></div></div>`);
+  if(fp.naShort>=50)items.push(`<div class="fuel-i"><span class="ic" style="background:var(--sodium)">Na</span><div><h4>${fmt(fp.naShort)} mg more sodium</h4><p>More than gels can carry. Use salt capsules or a salty drink.</p></div></div>`);
+  if(!items.length)items.push(`<div class="fuel-i"><span class="ic" style="background:var(--z1)">0</span><div><h4>No fuel needed</h4><p>Water to thirst. A normal meal afterward covers it.</p></div></div>`);
+  const notes=r.notes.slice();
+  if(fp.pctB>12)notes.push({w:1,t:`${fmt(fp.perBottle)} g in one bottle is a ${fp.pctB.toFixed(0)}% solution, which is thick and can upset your stomach. Move the slider toward gels or carry another bottle.`});
   el.innerHTML=`
     <div class="res-head"><h2 class="num">${hrs} ${esc(SPORTS[r.sport].label.toLowerCase())}</h2><span class="muted num">avg ${ZONES[Math.round(r.zAvg)].n} (${r.zAvg.toFixed(1)}) · ${Math.round(tOut(r.tempF))}${tU()}</span></div>
     <div class="zbar" aria-hidden="true">${zbar}</div><div class="zleg">${zleg}</div>
     <div class="metrics">
-      <div class="metric" style="--c:var(--carb)"><span class="lbl">Carbs</span><div class="big">${r.carb.target}<small>g/h</small></div><div class="sub">${fmt(r.carbTotal)} g total${r.carb.hi>0?` · range ${r.carb.lo}–${r.carb.hi}`:''}</div></div>
-      <div class="metric" style="--c:var(--fluid)"><span class="lbl">Fluid</span><div class="big">${r.fluid>0?fmt(flOut(r.fluid)):'—'}${r.fluid>0?`<small>${flU()}/h</small>`:''}</div><div class="sub">${r.fluid>0?fl(r.fluidTotal)+' total':'Drink to thirst'}</div></div>
-      <div class="metric" style="--c:var(--sodium)"><span class="lbl">Sodium</span><div class="big">${r.naH>0?fmt(r.naH):'—'}${r.naH>0?'<small>mg/h</small>':''}</div><div class="sub">${r.naH>0?fmt(r.naTotal)+' mg total':'Salt your next meal'}</div></div>
+      <div class="metric" style="--c:var(--carb)"><span class="lbl">Carbs</span><div class="big">${fp.total}<small>g</small></div><div class="sub">${fp.total?`${fmt(r.min)} min × ${r.carb.target} g/h`:'None needed'}</div></div>
+      <div class="metric" style="--c:var(--fluid)"><span class="lbl">Fluid</span><div class="big">${r.fluid>0?fmt(flOut(r.fluidTotal)):'—'}${r.fluid>0?`<small>${flU()}</small>`:''}</div><div class="sub">${r.fluid>0?fl(r.fluid)+'/h':'Drink to thirst'}</div></div>
+      <div class="metric" style="--c:var(--sodium)"><span class="lbl">Sodium</span><div class="big">${fp.naT>0?fmt(fp.naT):'—'}${fp.naT>0?'<small>mg</small>':''}</div><div class="sub">${fp.naT>0?fmt(r.naH)+' mg/h':'Salt your next meal'}</div></div>
     </div>
+    <div class="fuel">${items.join('')}</div>
+    ${notes.length?`<ul class="notes">${notes.map(n=>`<li class="${n.w?'w':''}">${n.t}</li>`).join('')}</ul>`:''}
     <dl class="kv">
       <dt>Estimated sweat rate</dt><dd>${fl(r.sr)}/h</dd>
-      <dt>Sweat lost</dt><dd>${fl(r.sweatTotal)}</dd>
-      <dt>Sodium lost in sweat</dt><dd>${fmt(r.naLoss*r.h)} mg</dd>
       <dt>Projected body-weight change</dt><dd style="color:${r.defPct>2?'var(--warn)':'inherit'}">−${fmt(wtOut(r.deficit)*10)/10} ${wtU()} (${r.defPct.toFixed(1)}%)</dd>
     </dl>
-    ${mix}
-    <div class="phase"><b>Before</b><span>${r.pre}</span><b>During</b><span>${r.carb.target>0?`Start fueling around 15–20 min in. Spread ${r.carb.target} g/h evenly, about ${Math.max(1,Math.round(r.carb.target/GEL*10)/10)} gels' worth per hour.`:'No carbs needed.'}${r.fluid>0?` Sip ${fmt(flOut(r.fluid/4))} ${flU()} every 15 min.`:''}</span><b>After</b><span>${r.post}</span></div>
-    ${r.notes.length?`<ul class="notes">${r.notes.map(n=>`<li class="${n.w?'w':''}">${n.t}</li>`).join('')}</ul>`:''}
     <p class="src">Sweat from ${r.base.src}. Sodium from ${r.na.src}. ${state.profile.example?'<strong>Example profile.</strong> ':''}<button type="button" class="btn small ghost" data-goto="method">How this is calculated</button></p>`;
 }
 function bindSession(){
   $('#s-sport').addEventListener('change',e=>{state.session.sport=e.target.value;save();renderSessionOut()});
+  $('#s-pref').addEventListener('input',e=>{const p=state.profile.fuelPref=Object.assign({},DEFAULT_PREF,state.profile.fuelPref||{});p[state.session.sport]=+e.target.value;save();renderSessionOut();renderWeek();renderPrefs()});
   $('#s-hum').addEventListener('change',e=>{state.session.humidity=e.target.value;save();renderSessionOut()});
   $('#s-zone').addEventListener('change',e=>{state.session.zone=+e.target.value;save();renderSessionOut()});
   $('#s-temp').addEventListener('input',e=>{if(e.target.value==='')return;state.session.tempF=tIn(num(e.target.value));save();renderSessionOut()});
@@ -748,42 +794,54 @@ function bindSession(){
 }
 
 /* ---------- WEEK ---------- */
+function renderPrefs(){
+  $('#prefBox').innerHTML=PREF_SPORTS.map(k=>{const v=prefOf(k);return `<div class="f"><label for="pf-${k}">${SPORTS[k].label}: <span style="text-transform:none;letter-spacing:0" data-pv="${k}">${prefLabel(v)}</span></label>
+    <input type="range" id="pf-${k}" data-pref="${k}" min="0" max="100" step="10" value="${v}"><div class="ends"><span>Gels</span><span>Drink</span></div></div>`}).join('');
+}
 function renderWeek(){
   $('#exWeekBanner').hidden=!state.week.example;
   const plans=state.week.days.map(dayPlan);
-  const tot=plans.reduce((a,p)=>({min:a.min+p.min,during:a.during+p.during,na:a.na+p.na,fluid:a.fluid+p.fluid}),{min:0,during:0,na:0,fluid:0});
-  // DIY batch
-  let malto=0,fruc=0,salt=0;
-  plans.forEach(p=>p.c.forEach(x=>{const g=x.r.carbTotal;if(x.r.carb.target>=60){malto+=g/1.8;fruc+=g*0.8/1.8}else malto+=g;salt+=x.r.naTotal/393}));
-  const maxC=Math.max(1,...plans.map(p=>p.carbs));
+  const T=k=>plans.reduce((a,p)=>a+p[k],0);
+  const tot={min:T('min'),total:T('total'),drinkC:T('drinkC'),gelGrams:T('gelGrams'),gels:T('gels'),bottles:T('bottles'),naDrink:T('naDrink'),naGelSalt:T('naGelSalt'),na:T('na')};
+  const maxC=Math.max(1,...plans.map(p=>p.drinkC+p.gelGrams));
   const hrs=`${Math.floor(tot.min/60)} h ${String(Math.round(tot.min%60)).padStart(2,'0')}`;
+  const dm=mixG(tot.drinkC),gm=mixG(tot.gels*GEL);
+  const drinkSalt=tot.naDrink/393,gelSalt=tot.naGelSalt/393;
+  const scoop=tot.drinkC?(tot.drinkC+drinkSalt)/tot.drinkC:1;
+  const bName=imp()?'24 oz':'750 mL';
   $('#weekSummary').innerHTML=`<div class="card stack">
-    <div class="res-head"><h2>This week</h2><span class="muted">Daily carb targets, g</span></div>
+    <div class="res-head"><h2>This week</h2><span class="muted num">${hrs} of training · ${plans.reduce((a,p)=>a+p.c.length,0)} workouts</span></div>
     <div class="sumgrid">
-      <div class="metric" style="--c:var(--accent)"><span class="lbl">Training</span><div class="big num">${hrs}</div><div class="sub">${plans.reduce((a,p)=>a+p.c.length,0)} sessions</div></div>
-      <div class="metric" style="--c:var(--carb)"><span class="lbl">Carbs in sessions</span><div class="big">${fmt(tot.during)}<small>g</small></div><div class="sub">≈ ${fmt(tot.during/GEL)} gels’ worth</div></div>
-      <div class="metric" style="--c:var(--fluid)"><span class="lbl">Fluid in sessions</span><div class="big">${fmt(flOut(tot.fluid))}<small>${flU()}</small></div><div class="sub">≈ ${fmt(tot.fluid*1000/bottleMl())} bottles</div></div>
-      <div class="metric" style="--c:var(--sodium)"><span class="lbl">Sodium in sessions</span><div class="big">${fmt(tot.na)}<small>mg</small></div><div class="sub">${(tot.na/393).toFixed(1)} g table salt</div></div>
+      <div class="metric" style="--c:var(--carb)"><span class="lbl">Workout carbs</span><div class="big">${fmt(tot.total)}<small>g</small></div><div class="sub">taken during training</div></div>
+      <div class="metric" style="--c:var(--carb)"><span class="lbl">Gels</span><div class="big">${fmt(tot.gels)}</div><div class="sub">${fmt(tot.gelGrams)} g carbs</div></div>
+      <div class="metric" style="--c:var(--fluid)"><span class="lbl">Drink bottles</span><div class="big">${fmt(tot.bottles)}</div><div class="sub">${fmt(tot.drinkC)} g carbs</div></div>
+      <div class="metric" style="--c:var(--sodium)"><span class="lbl">Sodium</span><div class="big">${fmt(tot.na)}<small>mg</small></div><div class="sub">during training</div></div>
     </div>
-    <div class="bars" role="img" aria-label="Daily carb targets">${plans.map((p,i)=>`<div><span class="v">${fmt(p.carbs)}</span><span class="b" style="height:${Math.max(4,p.carbs/maxC*80)}px"></span><span>${DAYS[i]}</span></div>`).join('')}</div>
-    <div class="mix"><span class="lbl">DIY batch for the week</span>${fmt(malto)} g maltodextrin${fruc>0?` + ${fmt(fruc)} g fructose`:''} + ${(salt).toFixed(1)} g table salt
-      <div class="hint">Assumes every in-session carb comes from your own mix. Subtract any gels or food you plan to use.</div></div>
+    <div class="legend"><span><i class="zdot" style="background:var(--carb)"></i>Gels</span><span><i class="zdot" style="background:var(--fluid)"></i>Drink</span></div>
+    <div class="bars" role="img" aria-label="Workout carbs by day">${plans.map((p,i)=>{const t=p.drinkC+p.gelGrams;return `<div><span class="v">${t?fmt(t):''}</span><span class="stk" style="height:${t?Math.max(4,t/maxC*80):0}px"><span style="flex:${p.gelGrams||0};background:var(--carb)"></span><span style="flex:${p.drinkC||0};background:var(--fluid)"></span></span><span>${DAYS[i]}</span></div>`}).join('')}</div>
+    <div class="recipes">
+      <div class="recipe"><h3>Drink mix · ${fmt(tot.bottles)} bottle${tot.bottles===1?'':'s'}</h3>
+        ${tot.drinkC?`<p class="muted" style="font-size:13px">Mix the dry ingredients in one container for the week.</p>
+        <ul><li>${fmt(dm.m)} g maltodextrin</li><li>${fmt(dm.f)} g fructose</li>${drinkSalt>0.05?`<li>${drinkSalt.toFixed(1)} g table salt</li>`:''}</ul>
+        <p style="font-size:13px">For each bottle, weigh about <strong>${scoop.toFixed(2)} g of mix per gram of carbs</strong> listed on that workout, then fill a ${bName} bottle with water and shake.</p>`:'<p class="muted" style="font-size:13px">No drink carbs this week.</p>'}
+      </div>
+      <div class="recipe"><h3>Homemade gels · ${fmt(tot.gels)} × ${GEL} g</h3>
+        ${tot.gels?`<ul><li>${fmt(gm.m)} g maltodextrin</li><li>${fmt(gm.f)} g fructose</li><li>${fmt(tot.gels*GEL*GEL_WATER)} mL warm water</li>${gelSalt>0.05?`<li>${gelSalt.toFixed(1)} g table salt</li>`:''}<li>Optional: a squeeze of lemon or a pinch of citric acid for flavor</li></ul>
+        <ol><li>Dissolve the fructose and salt in the warm water.</li><li>Whisk in the maltodextrin a little at a time until smooth.</li><li>Portion about ${fmt(GEL+GEL*GEL_WATER)} g per gel into flasks or reusable pouches.</li><li>Keep in the fridge and use within a week.</li></ol>`:'<p class="muted" style="font-size:13px">No gels this week.</p>'}
+      </div>
+    </div>
   </div>`;
   $('#days').innerHTML=plans.map((p,i)=>{
     const sess=state.week.days[i];
-    const rows=sess.length?sess.map(x=>{const r=p.c.find(c=>c.s.id===x.id);const rr=r&&r.r;
-      return `<div class="sess-i"><i style="background:var(--z${x.zone})"></i><div>${esc(SPORTS[x.sport]?SPORTS[x.sport].label:'Session')} · ${fmt(x.minutes)} min · ${ZONES[x.zone].n}
-        <small>${rr?`${rr.carb.target} g/h carbs · ${rr.fluid>0?fl(rr.fluid)+'/h':'drink to thirst'} · ${rr.naH>0?fmt(rr.naH)+' mg/h Na':'no added Na'} · ${Math.round(tOut(x.tempF))}${tU()}`:''}</small></div>
+    const rows=sess.length?sess.map(x=>{const c=p.c.find(c=>c.s.id===x.id);const fp=c&&c.fp;
+      const how=!fp||!fp.total?'no carbs needed':[fp.gels?`${fp.gels} gel${fp.gels>1?'s':''}`:'',fp.bottles?`${fp.bottles} bottle${fp.bottles>1?'s':''} × ${fmt(fp.perBottle)} g`:''].filter(Boolean).join(' + ');
+      return `<div class="sess-i"><i style="background:var(--z${x.zone})"></i><div>${esc(SPORTS[x.sport]?SPORTS[x.sport].label:'Session')} · ${fmt(x.minutes)} min · ${ZONES[x.zone].n} — <strong>${fp?fp.total:0} g</strong>
+        <small>${how}${fp&&fp.naT?` · ${fmt(fp.naT)} mg Na`:''} · ${Math.round(tOut(x.tempF))}${tU()}</small></div>
         <button type="button" class="x" data-del="${i}:${x.id}" aria-label="Remove session">✕</button></div>`}).join(''):'<p class="muted" style="font-size:13px">Rest day</p>';
     return `<div class="day">
       <div class="day-h"><h3>${DAYS[i]}</h3><span class="muted num" style="font-size:12.5px">${p.min?fmt(p.min)+' min':'Rest'}</span></div>
-      <div class="day-t">
-        <div><span class="muted">Carbs</span><b>${fmt(p.carbs)} g</b><span class="muted">${p.gkg.toFixed(1)} g/kg · ${p.band[0]}–${p.band[1]}</span></div>
-        <div><span class="muted">Protein</span><b>${fmt(p.protein)} g</b><span class="muted">${(p.protein/(state.profile.weightKg||75)).toFixed(1)} g/kg</span></div>
-      </div>
+      ${p.c.length?`<div class="daytot"><span class="muted">Workout carbs</span><b>${fmt(p.total)} g</b></div>`:''}
       <div class="sess">${rows}</div>
-      ${p.two?'<p class="hint" style="margin:0">Two sessions today: refuel with 1–1.2 g/kg carbs per hour between them.</p>':''}
-      ${p.during>0?`<p class="hint" style="margin:0">${fmt(p.during)} g of today’s carbs are taken during training.</p>`:''}
       <details class="add"><summary>+ Add session</summary>
         <div class="addform" data-day="${i}">
           <select data-f="sport" aria-label="Sport">${sportOpts('run')}</select>
@@ -805,6 +863,8 @@ function bindWeek(){
       state.week.days[i].push({id:uid(),sport:g('sport'),minutes:m,zone:+g('zone'),tempF:tIn(num(g('temp'))||tOut(65)),humidity:'normal'});
       save();renderWeek();const det=$$('#days details.add')[i];if(det)det.open=true}
   });
+  $('#prefBox').addEventListener('input',e=>{const k=e.target.dataset.pref;if(!k)return;const p=state.profile.fuelPref=Object.assign({},DEFAULT_PREF,state.profile.fuelPref||{});p[k]=+e.target.value;
+    const l=$(`[data-pv="${k}"]`);if(l)l.textContent=prefLabel(p[k]);save();renderWeek();renderSessionOut()});
   $('#clearWeek').addEventListener('click',()=>{state.week={example:false,days:[[],[],[],[],[],[],[]]};save();renderWeek()});
 }
 
@@ -902,7 +962,7 @@ function showTab(t){if(!TABS.includes(t))t='session';
   try{localStorage.setItem(LS_KEY+'-tab',t)}catch(e){}
 }
 function renderUnits(){$('#u-imp').setAttribute('aria-pressed',String(imp()));$('#u-met').setAttribute('aria-pressed',String(!imp()))}
-function renderAll(){renderUnits();renderSessionInputs();renderSessionOut();renderWeek();renderTestsInputs();renderTests();renderProfile();chip()}
+function renderAll(){renderUnits();renderPrefs();renderSessionInputs();renderSessionOut();renderWeek();renderTestsInputs();renderTests();renderProfile();chip()}
 
 $$('[data-tab]').forEach(b=>b.addEventListener('click',()=>{showTab(b.dataset.tab);if(location.hash!=='#'+b.dataset.tab)try{history.replaceState(null,'','#'+b.dataset.tab)}catch(e){}}));
 document.addEventListener('click',e=>{const g=e.target.closest('[data-goto]');if(g){showTab(g.dataset.goto);window.scrollTo({top:0})}});
@@ -910,11 +970,10 @@ $$('[data-units]').forEach(b=>b.addEventListener('click',()=>{state.units=b.data
 window.addEventListener('hashchange',()=>showTab(location.hash.slice(1)));
 
 
-/* ---------- backup ---------- */
 $('#exportBtn').addEventListener('click',()=>{
   const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);
-  a.download='sweat-fuel-backup-'+new Date().toISOString().slice(0,10)+'.json';
+  a.download='workout-fuel-backup-'+new Date().toISOString().slice(0,10)+'.json';
   document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
   $('#backupMsg').textContent='Backup downloaded.';
 });

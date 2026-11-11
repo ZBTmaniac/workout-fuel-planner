@@ -1,6 +1,6 @@
 # Workout Fuel Planner
 
-Carb, fluid and sodium targets for single workouts (including intervals) and a full training week, plus a sweat-test log and DIY drink-mix math.
+Exact carbs, fluid and sodium for each workout, a weekly total split into drink bottles and gels, and batch recipes for both.
 
 - Works offline once opened. On a phone, use **Add to Home Screen**.
 - Your data is saved only in your own browser. Nothing is sent anywhere.
