@@ -1,0 +1,15 @@
+{
+  "name": "Workout Fuel Planner",
+  "short_name": "Fuel Planner",
+  "description": "Carb, fluid and sodium targets for workouts and training weeks.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0D141B",
+  "theme_color": "#151F29",
+  "icons": [
+    {"src": "icon-192.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png"},
+    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ]
+}

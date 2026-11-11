@@ -1,0 +1,941 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#151F29">
+<meta name="description" content="Carb, fluid and sodium targets for single workouts and a training week. Runs offline; your data stays on your device.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Fuel Planner">
+<title>Workout Fuel Planner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Inter:wght@400;500;600&display=swap">
+<style>
+/* Layout: a training-log tool. Sticky tab bar, inputs on the left, live results on the right; stacks on phones with results first. */
+:root{
+  --bg:#F2F4F6; --surface:#FFFFFF; --surface-2:#E8ECF0; --ink:#15212C; --muted:#5A6977; --line:#D3DAE1;
+  --accent:#1E4F7A; --accent-ink:#FFFFFF; --accent-soft:#DCE8F3;
+  --carb:#C2410C; --fluid:#1C70B3; --sodium:#B07800;
+  --warn:#A55308; --warn-soft:#FBEBD7; --good:#17703A;
+  --z1:#9AA8B6; --z2:#3E86A8; --z3:#5E9A3A; --z4:#D08A12; --z5:#C2412D;
+  --font-display:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
+  --font-body:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --radius:10px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0D141B; --surface:#151F29; --surface-2:#1D2935; --ink:#E5ECF2; --muted:#93A3B2; --line:#2A3846;
+  --accent:#86B8E3; --accent-ink:#0D141B; --accent-soft:#1E3346;
+  --carb:#F2895A; --fluid:#62B0EA; --sodium:#EDC04F;
+  --warn:#F0A65A; --warn-soft:#3A2A17; --good:#5CC787;
+  --z1:#7D8B98; --z2:#5AA6CA; --z3:#7DBA57; --z4:#E9A63A; --z5:#E8634D;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0D141B; --surface:#151F29; --surface-2:#1D2935; --ink:#E5ECF2; --muted:#93A3B2; --line:#2A3846;
+  --accent:#86B8E3; --accent-ink:#0D141B; --accent-soft:#1E3346;
+  --carb:#F2895A; --fluid:#62B0EA; --sodium:#EDC04F;
+  --warn:#F0A65A; --warn-soft:#3A2A17; --good:#5CC787;
+  --z1:#7D8B98; --z2:#5AA6CA; --z3:#7DBA57; --z4:#E9A63A; --z5:#E8634D;
+  color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:14px;line-height:1.5}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+.wrap{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1,h2,h3{font-family:var(--font-display);font-weight:700;letter-spacing:.01em;text-wrap:balance;margin:0}
+h2{font-size:24px} h3{font-size:18px}
+p{margin:0}
+.muted{color:var(--muted)}
+.num{font-variant-numeric:tabular-nums}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* header */
+.top{background:var(--surface);border-bottom:1px solid var(--line)}
+.top .wrap{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center;justify-content:space-between;padding-block:14px}
+.brand{display:flex;gap:12px;align-items:center;min-width:0}
+.tile{width:48px;height:52px;border:2px solid var(--sodium);border-radius:6px;display:grid;grid-template-rows:auto 1fr auto;padding:2px 5px;font-variant-numeric:tabular-nums;flex:none}
+.tile small{font-size:9px;line-height:1.2;color:var(--muted)}
+.tile b{font-family:var(--font-display);font-size:24px;line-height:1;color:var(--sodium);align-self:center}
+.brand h1{font-size:26px;line-height:1.05}
+.brand p{color:var(--muted);font-size:13px}
+.top-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:4px 10px;border-radius:999px;background:var(--surface-2);color:var(--muted);white-space:nowrap}
+.chip::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--muted)}
+.chip.ok::before{background:var(--good)}
+.chip.ex{background:var(--warn-soft);color:var(--warn)}
+.chip.ex::before{background:var(--warn)}
+.seg{display:inline-flex;background:var(--surface-2);border-radius:8px;padding:3px;gap:2px}
+.seg button{border:0;background:transparent;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:12.5px;color:var(--muted);white-space:nowrap}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+
+/* tabs */
+.tabs{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+.tabs .wrap{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
+.tabs button{border:0;background:none;padding:12px 12px 10px;font-family:var(--font-display);font-size:17px;font-weight:600;letter-spacing:.02em;color:var(--muted);border-bottom:3px solid transparent;cursor:pointer;white-space:nowrap}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+main .wrap{padding-block:20px 48px}
+
+/* generic */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:18px}
+.stack{display:flex;flex-direction:column;gap:16px}
+.row{display:flex;flex-wrap:wrap;gap:12px}
+.row > .f{flex:1 1 140px;min-width:0}
+.f label,.lbl{display:block;font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:5px}
+input[type=number],input[type=text],input[type=date],select{width:100%;background:var(--surface);border:1px solid var(--line);border-radius:7px;padding:8px 10px;min-height:38px}
+input[type=number]{font-variant-numeric:tabular-nums}
+.hint{font-size:12.5px;color:var(--muted);margin-top:5px}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:7px;padding:8px 14px;cursor:pointer;font-weight:500;min-height:38px}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.small{padding:4px 10px;min-height:30px;font-size:13px}
+.btn.ghost{border-color:transparent;background:transparent;color:var(--muted)}
+.btn.ghost:hover{color:var(--ink);border-color:var(--line)}
+.banner{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;justify-content:space-between;background:var(--warn-soft);color:var(--warn);border-radius:8px;padding:10px 14px;font-size:13.5px}
+.banner .btn{color:var(--ink)}
+
+.split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);gap:20px;align-items:start}
+.results{position:sticky;top:64px}
+@media (max-width:860px){.split{grid-template-columns:minmax(0,1fr)}.results{position:static;order:-1}}
+
+/* choice cards */
+.choices{display:grid;gap:8px}
+.choices.c5{grid-template-columns:repeat(5,minmax(0,1fr))}
+.choices.c4{grid-template-columns:repeat(4,minmax(0,1fr))}
+@media (max-width:700px){.choices.c5,.choices.c4{grid-template-columns:minmax(0,1fr)}}
+.choice{border:1px solid var(--line);border-radius:8px;padding:10px;background:var(--surface);cursor:pointer;text-align:left;display:flex;flex-direction:column;gap:3px}
+.choice:hover{border-color:var(--accent)}
+.choice[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--accent)}
+.choice .k{font-family:var(--font-display);font-size:20px;font-weight:700;line-height:1}
+.choice .t{font-weight:600;font-size:13.5px;line-height:1.25}
+.choice .d{font-size:12px;color:var(--muted);line-height:1.35}
+@media (max-width:700px){.choice{flex-direction:row;align-items:baseline;gap:10px}.choice .k{min-width:22px}}
+
+/* zone select hint */
+.zh{font-size:12.5px;color:var(--muted);margin-top:5px}
+.zdot{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px;vertical-align:baseline}
+
+/* segments */
+.segs{display:flex;flex-direction:column;gap:10px}
+.segrow{border:1px solid var(--line);border-left:4px solid var(--z2);border-radius:8px;padding:10px 12px;display:grid;grid-template-columns:minmax(0,1.4fr) 64px minmax(0,1fr) minmax(0,1fr) auto;gap:8px 10px;align-items:end}
+.segrow .f label{font-size:10.5px;margin-bottom:3px}
+.segrow input,.segrow select{min-height:34px;padding:6px 8px}
+.segrow .pair{display:grid;grid-template-columns:62px minmax(0,1fr);gap:6px}
+.segrow .rm{align-self:center}
+.segrow .resolved{grid-column:1/-1;font-size:12px;color:var(--muted);margin-top:-2px}
+@media (max-width:640px){.segrow{grid-template-columns:minmax(0,1fr) 70px}.segrow .f.wk,.segrow .f.rs{grid-column:1/-1}.segrow .rm{grid-column:2;grid-row:1;justify-self:end}}
+
+/* results */
+.res-head{display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px 12px;align-items:baseline}
+.res-head h2{font-size:22px}
+.zbar{display:flex;height:12px;border-radius:4px;overflow:hidden;background:var(--surface-2);margin-top:10px}
+.zbar span{display:block;height:100%}
+.zleg{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--muted);margin-top:6px}
+.metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:16px}
+.metric{border-radius:8px;padding:12px;background:var(--surface-2);border-top:3px solid var(--c)}
+.metric .lbl{margin-bottom:2px}
+.metric .big{font-family:var(--font-display);font-weight:700;font-size:34px;line-height:1;color:var(--c);font-variant-numeric:tabular-nums}
+.metric .big small{font-size:15px;font-weight:600;margin-left:3px}
+.metric .sub{font-size:12.5px;color:var(--muted);margin-top:4px;font-variant-numeric:tabular-nums}
+@media (max-width:420px){.metric .big{font-size:28px}}
+.kv{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 14px;margin-top:14px;font-size:13.5px}
+.kv dt{color:var(--muted)} .kv dd{margin:0;text-align:right;font-variant-numeric:tabular-nums;font-weight:500}
+.phase{display:grid;grid-template-columns:72px minmax(0,1fr);gap:8px 12px;margin-top:14px;font-size:13.5px}
+.phase b{font-family:var(--font-display);font-size:15px;letter-spacing:.03em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.notes{list-style:none;padding:0;margin:14px 0 0;display:flex;flex-direction:column;gap:6px}
+.notes li{font-size:13px;padding:8px 10px;border-radius:7px;background:var(--surface-2)}
+.notes li.w{background:var(--warn-soft);color:var(--warn)}
+.src{font-size:12px;color:var(--muted);margin-top:14px;border-top:1px solid var(--line);padding-top:10px}
+.mix{margin-top:14px;border:1px dashed var(--line);border-radius:8px;padding:10px 12px;font-size:13.5px}
+.mix .lbl{margin-bottom:4px}
+
+/* week */
+.sumgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+@media (max-width:760px){.sumgrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.days{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+.day{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px;display:flex;flex-direction:column;gap:10px}
+.day-h{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.day-h h3{font-size:20px}
+.day-t{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;font-size:12.5px}
+.day-t div{background:var(--surface-2);border-radius:6px;padding:6px 8px}
+.day-t b{display:block;font-size:16px;font-variant-numeric:tabular-nums}
+.sess{display:flex;flex-direction:column;gap:6px}
+.sess-i{display:grid;grid-template-columns:4px minmax(0,1fr) auto;gap:8px;align-items:center;font-size:13px}
+.sess-i i{align-self:stretch;border-radius:2px}
+.sess-i .x{border:0;background:none;color:var(--muted);cursor:pointer;font-size:16px;padding:2px 6px;border-radius:5px}
+.sess-i .x:hover{color:var(--ink);background:var(--surface-2)}
+.sess-i small{display:block;color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
+.addform{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:6px}
+.addform select,.addform input{min-height:32px;padding:5px 8px;font-size:13px}
+.addform .btn{grid-column:1/-1}
+details.add summary{cursor:pointer;color:var(--accent);font-size:13px;font-weight:500;list-style:none}
+details.add summary::-webkit-details-marker{display:none}
+details.add[open] summary{margin-bottom:8px}
+.bars{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;align-items:end;height:120px;margin-top:8px}
+.bars div{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:4px;font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums;min-width:0}
+.bars span.b{width:100%;max-width:42px;border-radius:4px 4px 0 0;background:var(--carb);opacity:.85}
+.bars span.v{color:var(--ink);font-weight:500}
+
+/* tests */
+.tbl-wrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13.5px;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600}
+.steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+@media (max-width:760px){.steps{grid-template-columns:minmax(0,1fr)}}
+.step{display:flex;gap:10px}
+.step .n{font-family:var(--font-display);font-weight:700;font-size:22px;color:var(--accent);line-height:1}
+.empty{border:1px dashed var(--line);border-radius:8px;padding:18px;text-align:center;color:var(--muted)}
+.live{font-family:var(--font-display);font-size:26px;font-weight:700;color:var(--fluid);font-variant-numeric:tabular-nums}
+
+/* method */
+.prose{max-width:72ch;display:flex;flex-direction:column;gap:10px}
+.prose h3{margin-top:10px}
+.method-tbl td,.method-tbl th{white-space:normal}
+
+.confirm{display:inline-flex;gap:8px;align-items:center;flex-wrap:wrap}
+@media (prefers-reduced-motion:no-preference){.tabs button,.choice,.btn{transition:border-color .15s,background .15s,color .15s}}
+</style>
+<style>body{margin:0}:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}img{max-width:100%}</style>
+</head>
+<body>
+
+
+<header class="top">
+  <div class="wrap">
+    <div class="brand">
+      <div class="tile" aria-hidden="true"><small>11</small><b>Na</b><small>22.99</small></div>
+      <div><h1>Workout Fuel Planner</h1><p>Carbs, fluid and sodium for one session or a full training week</p></div>
+    </div>
+    <div class="top-actions">
+      <span id="saveChip" class="chip">Loading…</span>
+      <div class="seg" role="group" aria-label="Units">
+        <button type="button" id="u-imp" data-units="imperial">lb · oz · °F</button>
+        <button type="button" id="u-met" data-units="metric">kg · mL · °C</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<nav class="tabs"><div class="wrap" role="tablist">
+  <button role="tab" id="t-session" data-tab="session">Session</button>
+  <button role="tab" id="t-week" data-tab="week">Week</button>
+  <button role="tab" id="t-tests" data-tab="tests">Sweat tests</button>
+  <button role="tab" id="t-profile" data-tab="profile">Profile</button>
+  <button role="tab" id="t-method" data-tab="method">How it works</button>
+</div></nav>
+
+<main><div class="wrap">
+
+<!-- SESSION -->
+<section id="p-session" data-panel="session" class="stack">
+  <div id="exProfileBanner" class="banner" hidden><span>You're seeing an example profile (170 lb, middle-of-the-road sweat and salt). Set yours for real numbers.</span><button type="button" class="btn small" data-goto="profile">Set up profile</button></div>
+  <div class="split">
+    <div class="card stack">
+      <h2>Workout</h2>
+      <div class="row">
+        <div class="f"><label for="s-sport">Sport</label><select id="s-sport"></select></div>
+        <div class="f"><label for="s-temp" id="s-temp-l">Temp (°F)</label><input type="number" id="s-temp" inputmode="decimal"></div>
+        <div class="f"><label for="s-hum">Humidity</label><select id="s-hum"></select></div>
+      </div>
+      <div>
+        <span class="lbl">Structure</span>
+        <div class="seg" role="group" aria-label="Structure">
+          <button type="button" id="m-steady" data-mode="steady">Steady</button>
+          <button type="button" id="m-int" data-mode="intervals">Intervals</button>
+        </div>
+      </div>
+      <div id="steadyBox" class="row">
+        <div class="f"><label for="s-min">Duration (min)</label><input type="number" id="s-min" min="0" step="5" inputmode="numeric"></div>
+        <div class="f"><label for="s-zone">Overall intensity</label><select id="s-zone"></select><div class="zh" id="s-zone-h"></div></div>
+      </div>
+      <div id="intBox" class="stack" hidden>
+        <p class="hint" style="margin:0">Each block is reps × (work + recovery). Type a heart rate (e.g. 162) or a pace (e.g. 7:05) in “Target” to set the zone from your profile.</p>
+        <div class="segs" id="segList"></div>
+        <div class="row">
+          <button type="button" class="btn small" id="addSeg">+ Add block</button>
+          <button type="button" class="btn small ghost" data-preset="track">Preset: 6 × 800 m</button>
+          <button type="button" class="btn small ghost" data-preset="tempo">Preset: long run, tempo finish</button>
+          <button type="button" class="btn small ghost" data-preset="bike">Preset: 3 × 12 min sweet spot</button>
+        </div>
+      </div>
+      <div class="row" style="align-items:end;border-top:1px solid var(--line);padding-top:14px">
+        <div class="f"><label for="s-day">Add this workout to</label><select id="s-day"></select></div>
+        <button type="button" class="btn" id="toWeek">Add to week</button>
+        <span id="toWeekMsg" class="hint" role="status"></span>
+      </div>
+    </div>
+    <aside class="card results" id="sessionOut" aria-live="polite"></aside>
+  </div>
+</section>
+
+<!-- WEEK -->
+<section id="p-week" data-panel="week" class="stack" hidden>
+  <div id="exWeekBanner" class="banner" hidden><span>This is an example week built around two strength days and an easy aerobic base. Swap in your own sessions.</span><button type="button" class="btn small" id="clearWeek">Clear the example</button></div>
+  <div id="weekSummary"></div>
+  <div class="days" id="days"></div>
+</section>
+
+<!-- TESTS -->
+<section id="p-tests" data-panel="tests" class="stack" hidden>
+  <div class="card stack">
+    <h2>Measure your sweat rate</h2>
+    <div class="steps">
+      <div class="step"><span class="n">1</span><p>Pee, then weigh yourself with no clothes on right before a session of about an hour.</p></div>
+      <div class="step"><span class="n">2</span><p>Train as normal. Track what you drink. If you pee mid-session, estimate how much.</p></div>
+      <div class="step"><span class="n">3</span><p>Towel off and weigh yourself with no clothes on again, before eating or drinking. Log it below.</p></div>
+    </div>
+    <p class="hint" style="margin:0">Each test is adjusted for its temperature and effort, so tests from different days can be averaged. Three to five tests in different weather gives a solid number.</p>
+  </div>
+  <div class="split">
+    <div class="card stack">
+      <h3>Log a test</h3>
+      <div class="row">
+        <div class="f"><label for="t-date">Date</label><input type="date" id="t-date"></div>
+        <div class="f"><label for="t-sport">Sport</label><select id="t-sport"></select></div>
+      </div>
+      <div class="row">
+        <div class="f"><label for="t-min">Duration (min)</label><input type="number" id="t-min" inputmode="numeric" placeholder="60"></div>
+        <div class="f"><label for="t-zone">Average intensity</label><select id="t-zone"></select></div>
+      </div>
+      <div class="row">
+        <div class="f"><label for="t-temp" id="t-temp-l">Temp (°F)</label><input type="number" id="t-temp" inputmode="decimal"></div>
+        <div class="f"><label for="t-hum">Humidity</label><select id="t-hum"></select></div>
+      </div>
+      <div class="row">
+        <div class="f"><label for="t-pre" id="t-pre-l">Weight before (lb)</label><input type="number" id="t-pre" step="0.1" inputmode="decimal"></div>
+        <div class="f"><label for="t-post" id="t-post-l">Weight after (lb)</label><input type="number" id="t-post" step="0.1" inputmode="decimal"></div>
+      </div>
+      <div class="row">
+        <div class="f"><label for="t-drank" id="t-drank-l">Drank during (oz)</label><input type="number" id="t-drank" inputmode="decimal" placeholder="0"></div>
+        <div class="f"><label for="t-pee" id="t-pee-l">Peed during (oz)</label><input type="number" id="t-pee" inputmode="decimal" placeholder="0"></div>
+      </div>
+      <div class="row" style="align-items:center;justify-content:space-between">
+        <div><span class="lbl">Sweat rate</span><span class="live" id="t-live">—</span></div>
+        <button type="button" class="btn primary" id="t-add">Log test</button>
+      </div>
+      <p class="hint" id="t-err" role="status" style="margin:0"></p>
+    </div>
+    <div class="card stack">
+      <h3>Your tests</h3>
+      <div id="testsOut"></div>
+    </div>
+  </div>
+</section>
+
+<!-- PROFILE -->
+<section id="p-profile" data-panel="profile" class="stack" hidden>
+  <div class="card stack">
+    <h2>You</h2>
+    <div class="row">
+      <div class="f"><label for="p-wt" id="p-wt-l">Body weight (lb)</label><input type="number" id="p-wt" step="0.5" inputmode="decimal"></div>
+      <div class="f"><label for="p-gut">Gut tolerance for carbs</label><select id="p-gut"></select><div class="hint">The most carbs per hour you've handled in training without GI trouble.</div></div>
+    </div>
+  </div>
+  <div class="card stack">
+    <div><h2>How salty a sweater are you?</h2><p class="muted">Think about a long or hard run in warm weather.</p></div>
+    <div class="choices c5" id="saltChoices"></div>
+    <div class="row">
+      <div class="f"><label for="p-na">Lab-tested sweat sodium (mg/L), optional</label><input type="number" id="p-na" inputmode="numeric" placeholder="e.g. 1120"><div class="hint">If you have a lab or patch result, it replaces the 1–5 estimate above.</div></div>
+    </div>
+  </div>
+  <div class="card stack">
+    <div><h2>How much do you sweat?</h2><p class="muted">On a steady, comfortable run in mild weather (around 65°F / 18°C).</p></div>
+    <div class="choices c4" id="sweatChoices"></div>
+    <div class="row" style="align-items:end">
+      <div class="f"><label for="p-sr" id="p-sr-l">I know my sweat rate (oz/h)</label><input type="number" id="p-sr" inputmode="decimal" placeholder="e.g. 34"></div>
+      <div class="f" id="p-tests-opt"></div>
+    </div>
+    <p class="hint" id="p-sweat-src" style="margin:0"></p>
+  </div>
+  <div class="card stack">
+    <div><h2>Threshold</h2><p class="muted">Used to turn heart rates and paces into zones (5-zone model, % of lactate threshold).</p></div>
+    <div class="row">
+      <div class="f"><label for="p-lthr">Lactate threshold HR (bpm)</label><input type="number" id="p-lthr" inputmode="numeric" placeholder="e.g. 168"></div>
+      <div class="f"><label for="p-pace" id="p-pace-l">Threshold run pace (min/mi)</label><input type="text" id="p-pace" inputmode="numeric" placeholder="e.g. 7:15"></div>
+    </div>
+    <div id="zoneTable"></div>
+  </div>
+  <div class="card row" style="align-items:center;justify-content:space-between">
+    <p class="muted" id="storeNote" style="flex:1 1 260px"></p>
+    <span class="row" style="gap:8px"><button type="button" class="btn" id="exportBtn">Download backup</button><label class="btn" for="importFile" style="display:inline-flex;align-items:center">Restore backup</label><input type="file" id="importFile" accept="application/json,.json" hidden><span id="clearBox"><button type="button" class="btn" id="clearAll">Erase all my data</button></span></span>
+    <p class="hint" id="backupMsg" role="status" style="flex-basis:100%;margin:0"></p>
+  </div>
+</section>
+
+<!-- METHOD -->
+<section id="p-method" data-panel="method" hidden>
+  <div class="card prose">
+    <h2>How the numbers are built</h2>
+    <p>Everything here is a starting point for training, not a prescription. Try race-day amounts in training first, and adjust based on how you feel and on your sweat tests.</p>
+
+    <h3>Carbs during a session</h3>
+    <p>Based on Jeukendrup's duration-based guidelines (Sports Medicine, 2014). Within each band, the target moves toward the top as average intensity and time above threshold go up. It's capped by your gut tolerance.</p>
+    <div class="tbl-wrap"><table class="method-tbl"><thead><tr><th>Duration</th><th>Carbs per hour</th></tr></thead><tbody>
+      <tr><td>Under 45 min</td><td>None needed</td></tr>
+      <tr><td>45–75 min</td><td>0–30 g (small amounts or a mouth rinse on hard sessions)</td></tr>
+      <tr><td>75–150 min</td><td>30–60 g</td></tr>
+      <tr><td>Over 150 min</td><td>60–90 g, up to 120 g if your gut is trained for it</td></tr>
+    </tbody></table></div>
+    <p>Above 60 g/h the mix recipe switches to glucose (maltodextrin) plus fructose at about 1 : 0.8. Your gut absorbs the two through different routes, so you can take in more.</p>
+
+    <h3>Daily carbs</h3>
+    <p>From the ACSM / Academy of Nutrition and Dietetics / Dietitians of Canada joint position on nutrition and athletic performance (Thomas, Erdman &amp; Burke, 2016). Protein is set at 1.4–1.6 g/kg (higher on strength days), inside their 1.2–2.0 g/kg range.</p>
+    <div class="tbl-wrap"><table class="method-tbl"><thead><tr><th>Training that day</th><th>Carbs, g per kg body weight</th></tr></thead><tbody>
+      <tr><td>Rest or under 45 min</td><td>3–5</td></tr>
+      <tr><td>45–90 min</td><td>5–7</td></tr>
+      <tr><td>1.5–3 h</td><td>6–10</td></tr>
+      <tr><td>3–4.5 h</td><td>7–10</td></tr>
+      <tr><td>Over 4.5 h</td><td>8–12</td></tr>
+    </tbody></table></div>
+
+    <h3>Sweat rate</h3>
+    <p>Your baseline, from the 1–4 description, a number you know, or your logged tests, is for a steady run in mild weather. It's then scaled by:</p>
+    <div class="tbl-wrap"><table class="method-tbl"><tbody>
+      <tr><th>Intensity</th><td>Z1 ×0.8 · Z2 ×1.0 · Z3 ×1.15 · Z4 ×1.3 · Z5 ×1.4, time-weighted across your blocks</td></tr>
+      <tr><th>Temperature</th><td>+2.5% per °F above 65°F (−2.5% below), held between ×0.6 and ×1.8</td></tr>
+      <tr><th>Humidity</th><td>Dry ×0.95 · Normal ×1.0 · Humid ×1.15</td></tr>
+      <tr><th>Sport</th><td>Run ×1.0 · Outdoor bike ×0.85 (airflow) · Indoor trainer ×1.2 · Hyrox ×0.95 · Other ×0.9 · Strength ×0.6 · Swim ×0.5</td></tr>
+    </tbody></table></div>
+    <p>These multipliers are reasonable rules of thumb, not published constants. Your own sweat tests are the best correction.</p>
+    <p>The 1–4 descriptions map to about 0.5, 0.8, 1.2 and 1.6 L/h. Most endurance athletes measure between about 0.5 and 2.0 L/h (Baker, Sports Medicine, 2017).</p>
+
+    <h3>Fluid</h3>
+    <p>Sessions under an hour: drink to thirst. Longer: aim to replace about 70% of sweat loss, at 0.4–1.0 L/h, and never more than you sweat. Drinking past your sweat rate is how hyponatremia (low blood sodium) happens. The planner flags any session projected to cost more than 2% of body weight, the point where performance tends to drop (ACSM fluid replacement position stand, 2007).</p>
+
+    <h3>Sodium</h3>
+    <p>Sweat sodium varies a lot from person to person. In Baker's 2017 review, average concentrations ranged from about 230 to over 2,000 mg/L, around a mean near 950. The 1–5 saltiness scale maps to 400, 650, 950, 1,250 and 1,600 mg/L. A lab result replaces it.</p>
+    <p>Sodium lost per hour = sweat rate × concentration. The planner suggests replacing about half of that in sessions of 90 min to 3 h, and about three-quarters beyond 3 h. That works out to 200–1,500 mg/h. Short sessions just need a salted meal afterward, unless it's hot.</p>
+    <p>Table salt is about 39% sodium by weight, so 1 g of salt has about 390 mg of sodium.</p>
+
+    <h3>Zones</h3>
+    <p>Joe Friel-style run zones. HR as % of LTHR: Z1 under 85, Z2 85–89, Z3 90–94, Z4 95–99, Z5 100+. Pace as a multiple of threshold pace: Z1 slower than 1.29×, Z2 1.14–1.29×, Z3 1.06–1.13×, Z4 0.99–1.05×, Z5 faster.</p>
+  </div>
+</section>
+
+</div></main>
+
+<script>
+(function(){
+"use strict";
+/* ---------- constants ---------- */
+const LB=0.45359237, OZ=29.5735, MI=1.609344;
+const SPORTS={run:{label:'Run',sf:1},bike:{label:'Bike (outdoor)',sf:0.85},trainer:{label:'Bike (indoor trainer)',sf:1.2},swim:{label:'Swim',sf:0.5},hyrox:{label:'Hyrox / functional',sf:0.95},strength:{label:'Strength',sf:0.6},other:{label:'Other cardio',sf:0.9}};
+const ZONES=[null,{n:'Z1',name:'Recovery'},{n:'Z2',name:'Endurance'},{n:'Z3',name:'Tempo'},{n:'Z4',name:'Threshold'},{n:'Z5',name:'VO2 / anaerobic'}];
+const ZF=[0,0.8,1,1.15,1.3,1.4];
+const HUM={dry:{label:'Dry',f:0.95},normal:{label:'Normal',f:1},humid:{label:'Humid',f:1.15}};
+const SWEAT_FEEL=[
+  {label:'Barely sweaty',lph:0.5,hint:'Damp by the end, shirt mostly dry'},
+  {label:'Visibly sweaty',lph:0.8,hint:'Shirt soaked through in places'},
+  {label:"Probably don't want to hug me",lph:1.2,hint:'Shirt soaked, dripping on hard efforts'},
+  {label:'Look like I jumped in a pool',lph:1.6,hint:'Dripping steadily, shoes squelch'}];
+const SALT=[
+  {label:'No salt afterward',mgL:400,hint:'Nothing visible, sweat tastes mild'},
+  {label:'Faint residue',mgL:650,hint:'Light marks on a hat or straps now and then'},
+  {label:'White lines',mgL:950,hint:'Salt lines on a dark shirt or cap after long runs'},
+  {label:'Salt on clothes and skin',mgL:1250,hint:'Gritty skin, sweat stings your eyes'},
+  {label:'Caked in salt',mgL:1600,hint:'Crusted clothes and skin after a long or hard run'}];
+const GUT=[{label:'New to fueling (≈60 g/h)',cap:60},{label:'Some practice (≈75 g/h)',cap:75},{label:'Gut trained (≈90 g/h)',cap:90},{label:'Highly trained (≈120 g/h)',cap:120}];
+const DAYS=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+const GEL=25;
+
+/* ---------- helpers ---------- */
+const $=s=>document.querySelector(s);
+const $$=s=>Array.from(document.querySelectorAll(s));
+const uid=()=>Math.random().toString(36).slice(2,10);
+const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
+const num=v=>{const n=parseFloat(v);return isFinite(n)?n:0};
+const r5=v=>Math.round(v/5)*5;
+const r50=v=>Math.round(v/50)*50;
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt=n=>Math.round(n).toLocaleString('en-US');
+
+/* ---------- state ---------- */
+function exampleWeek(){
+  const s=(sport,minutes,zone,tempF)=>({id:uid(),sport,minutes,zone,tempF:tempF??60,humidity:'normal'});
+  return [[s('strength',60,3,68)],[s('run',50,2)],[s('trainer',60,2,68)],[s('strength',60,3,68)],[],[s('run',120,2)],[s('bike',150,2)]];
+}
+function exampleSegments(){
+  return [
+    {id:uid(),label:'Warm-up',reps:1,work:20,wz:2,wt:'',rest:0,rz:1},
+    {id:uid(),label:'Threshold reps',reps:5,work:6,wz:4,wt:'',rest:2,rz:1},
+    {id:uid(),label:'Cool-down',reps:1,work:15,wz:2,wt:'',rest:0,rz:1}];
+}
+function defaults(){
+  return {v:1,units:'imperial',
+    profile:{example:true,weightKg:170*LB,salt:3,sweatMode:'feel',sweatFeel:1,sweatLph:null,naLab:null,lthr:null,paceSecKm:null,gut:2},
+    session:{sport:'run',minutes:90,zone:2,tempF:72,humidity:'normal',mode:'intervals',segments:exampleSegments()},
+    week:{example:true,days:exampleWeek()},
+    tests:[]};
+}
+function mergeState(raw){
+  const d=defaults(); if(!raw||typeof raw!=='object') return d;
+  return {v:1,units:raw.units==='metric'?'metric':'imperial',
+    profile:Object.assign(d.profile,raw.profile||{}),
+    session:Object.assign(d.session,raw.session||{}),
+    week:Object.assign(d.week,raw.week||{}),
+    tests:Array.isArray(raw.tests)?raw.tests:[]};
+}
+let state=defaults();
+const LS_KEY='sweat-fuel-planner-v1';
+try{const raw=localStorage.getItem(LS_KEY); if(raw) state=mergeState(JSON.parse(raw));}catch(e){}
+
+/* ---------- units ---------- */
+const imp=()=>state.units==='imperial';
+const wtOut=kg=>imp()?kg/LB:kg;
+const wtIn=v=>imp()?v*LB:v;
+const wtU=()=>imp()?'lb':'kg';
+const flOut=L=>imp()?L*1000/OZ:L*1000;
+const flIn=v=>imp()?v*OZ/1000:v/1000;
+const flU=()=>imp()?'oz':'mL';
+const fl=L=>fmt(flOut(L))+' '+flU();
+const tOut=F=>imp()?F:(F-32)*5/9;
+const tIn=v=>imp()?v:v*9/5+32;
+const tU=()=>imp()?'°F':'°C';
+const paceU=()=>imp()?'/mi':'/km';
+function fmtPace(secKm){const s=imp()?secKm*MI:secKm;let m=Math.floor(s/60),ss=Math.round(s-m*60);if(ss===60){m++;ss=0}return m+':'+String(ss).padStart(2,'0')}
+function parsePace(t){const m=String(t||'').trim().match(/^(\d{1,2}):([0-5]\d)$/);if(!m)return null;const s=+m[1]*60+ +m[2];if(!s)return null;return imp()?s/MI:s}
+const bottleMl=()=>imp()?710:750;
+
+/* ---------- zones ---------- */
+function zoneFromHR(hr){const L=state.profile.lthr;if(!L)return null;const p=hr/L;return p<0.85?1:p<0.90?2:p<0.95?3:p<1.0?4:5}
+function zoneFromPace(secKm){const T=state.profile.paceSecKm;if(!T)return null;const r=secKm/T;return r>1.29?1:r>1.13?2:r>1.05?3:r>=0.99?4:5}
+function resolveZone(text,fallback){
+  const t=String(text||'').trim();
+  if(/^\d{2,3}$/.test(t)){const z=zoneFromHR(+t);if(z)return{zone:z,src:'hr'};return{zone:fallback,src:'nohr'}}
+  if(/^\d{1,2}:\d{2}$/.test(t)){const p=parsePace(t);const z=p?zoneFromPace(p):null;if(z)return{zone:z,src:'pace'};return{zone:fallback,src:'nopace'}}
+  return{zone:fallback,src:null};
+}
+function zoneHint(z,sport){
+  const p=state.profile,parts=[];
+  if(p.lthr){const L=p.lthr,b=[0,.85,.90,.95,1.0];
+    const lo=Math.round(L*b[z-1]||0),hi=Math.round(L*(b[z]||9)-1);
+    parts.push(z===1?`HR under ${Math.round(L*.85)}`:z===5?`HR ${Math.round(L)}+`:`HR ${lo}–${hi}`)}
+  if(p.paceSecKm&&(!sport||sport==='run')){const T=p.paceSecKm,k=[null,[1.29,null],[1.14,1.29],[1.06,1.13],[0.99,1.05],[null,0.99]][z];
+    parts.push(z===1?`slower than ${fmtPace(T*1.29)}${paceU()}`:z===5?`faster than ${fmtPace(T*0.99)}${paceU()}`:`${fmtPace(T*k[1])}–${fmtPace(T*k[0])}${paceU()}`)}
+  return parts.length?parts.join(' · '):'Add your threshold HR or pace in Profile to see your ranges.';
+}
+
+/* ---------- physiology ---------- */
+const tempFactor=F=>clamp(1+0.025*(F-65),0.6,1.8);
+function testRate(t){const h=num(t.minutes)/60;if(h<=0)return null;const L=num(t.preKg)-num(t.postKg)+num(t.drankL)-num(t.peeL);if(!(L>0))return null;return L/h}
+function testNorm(t){const r=testRate(t);if(!r)return null;const sp=SPORTS[t.sport]||SPORTS.run;return r/(ZF[t.zone||2]*tempFactor(num(t.tempF)||65)*(HUM[t.humidity]||HUM.normal).f*sp.sf)}
+function testsBaseline(){const v=state.tests.map(testNorm).filter(x=>x>0);if(!v.length)return null;return{avg:v.reduce((a,b)=>a+b,0)/v.length,n:v.length}}
+function sweatBase(){
+  const p=state.profile;
+  if(p.sweatMode==='number'&&p.sweatLph>0)return{lph:p.sweatLph,src:'the sweat rate you entered'};
+  if(p.sweatMode==='tests'){const b=testsBaseline();if(b)return{lph:b.avg,src:`the average of your ${b.n} sweat test${b.n>1?'s':''}`}}
+  const f=SWEAT_FEEL[p.sweatFeel]||SWEAT_FEEL[1];return{lph:f.lph,src:`“${f.label}” (about ${fl(f.lph)}/h)`};
+}
+function naConc(){const p=state.profile;if(p.naLab>0)return{mgL:p.naLab,src:'your lab result'};const s=SALT[(p.salt||3)-1];return{mgL:s.mgL,src:`saltiness ${p.salt}/5 (≈${fmt(s.mgL)} mg/L)`}}
+
+function zoneMinutes(sess){
+  const z=[0,0,0,0,0,0];
+  if(sess.mode==='intervals'&&sess.segments&&sess.segments.length){
+    for(const s of sess.segments){const r=Math.max(1,Math.round(num(s.reps)||1));const wz=resolveZone(s.wt,s.wz||2).zone;z[wz]+=r*Math.max(0,num(s.work));z[s.rz||1]+=r*Math.max(0,num(s.rest))}
+  }else z[clamp(sess.zone||2,1,5)]+=Math.max(0,num(sess.minutes));
+  return z;
+}
+function carbRate(min,zAvg,hiFrac,sport,cap){
+  if(sport==='strength')return{lo:0,hi:min>=90?30:0,target:min>=90?20:0};
+  if(sport==='swim'&&min<90)return{lo:0,hi:0,target:0};
+  let lo,hi;
+  if(min<45){lo=0;hi=0}else if(min<75){lo=0;hi=30}else if(min<150){lo=30;hi=60}else{lo=60;hi=Math.max(90,Math.min(cap,120))}
+  const s=clamp((zAvg-1.5)/2.5+hiFrac*0.3,0,1);
+  let t=r5(lo+(hi-lo)*s);
+  if(min>=45&&min<75&&zAvg<2.6)t=0;
+  t=Math.min(t,cap);
+  return{lo,hi:Math.min(hi,cap),target:t};
+}
+function compute(sess){
+  const p=state.profile,z=zoneMinutes(sess),min=z.reduce((a,b)=>a+b,0);
+  if(!(min>0))return null;
+  const sport=SPORTS[sess.sport]?sess.sport:'run',sp=SPORTS[sport];
+  let zAvg=0,zf=0;for(let i=1;i<=5;i++){zAvg+=i*z[i]/min;zf+=ZF[i]*z[i]/min}
+  const hiFrac=(z[4]+z[5])/min,h=min/60,tempF=num(sess.tempF)||65,hum=HUM[sess.humidity]||HUM.normal;
+  const base=sweatBase(),na=naConc(),cap=(GUT[p.gut]||GUT[2]).cap;
+  const sr=base.lph*zf*tempFactor(tempF)*hum.f*sp.sf;
+  const carb=carbRate(min,zAvg,hiFrac,sport,cap);
+  let fluid=0;
+  if(sport!=='swim'&&min>=60){fluid=sr<0.4?sr:Math.min(sr,clamp(sr*0.7,0.4,1.0))}
+  const naLoss=sr*na.mgL;
+  let naH=0;const hot=tempF>=80;
+  if(sport!=='swim'&&(min>=90||(hot&&min>=60))){const r=min>=180?0.75:0.5;naH=r50(clamp(naLoss*r,200,1500))}
+  const deficit=Math.max(0,(sr-fluid)*h),defPct=deficit/(p.weightKg||75)*100;
+  const out={min,z,zAvg,hiFrac,h,sr,fluid,carb,naH,naLoss,na,base,deficit,defPct,sport,tempF,
+    carbTotal:carb.target*h,fluidTotal:fluid*h,naTotal:naH*h,sweatTotal:sr*h,notes:[]};
+  // bottle math
+  if(fluid>0){
+    const bph=fluid*1000/bottleMl(),cpb=carb.target/bph,pct=cpb/bottleMl()*100;
+    const keep=Math.min(cpb,0.07*bottleMl());
+    const split=carb.target>=60;
+    out.bottle={bph,cpb,pct,napb:naH/bph,keep,gelsPerH:Math.max(0,(carb.target-keep*bph)/GEL),split};
+  }
+  // notes
+  const N=out.notes,wt=p.weightKg||75;
+  if(min<60&&sport!=='swim')N.push({t:'Under an hour: water to thirst is enough. Eat normally before and after.'});
+  if(sport==='swim')N.push({t:'You can’t really fuel while swimming. Eat beforehand and drink as soon as you get out.'});
+  if(min>=45&&min<75&&carb.target===0&&zAvg>=2)N.push({t:'If the session feels flat, 15–30 g of carbs or a sports-drink mouth rinse can help on harder 45–75 min efforts.'});
+  if(defPct>2)N.push({w:1,t:`Projected loss is about ${defPct.toFixed(1)}% of body weight (${fmt(wtOut(deficit))} ${wtU()}). Above 2% performance usually suffers. Drink a little more if your stomach allows, or plan a refill.`});
+  if(out.bottle&&out.bottle.pct>8)N.push({t:`Putting all ${carb.target} g/h in ${out.bottle.bph<1.05?'one bottle':'your bottles'} would be a ${out.bottle.pct.toFixed(0)}% solution, which is thick and slow to absorb. Keep bottles near 7% and take about ${out.bottle.gelsPerH.toFixed(1)} gels (25 g each) per hour.`});
+  if((na.mgL>=1200||p.salt>=4)&&(min>=120||hot)&&sport!=='swim')N.push({t:'As a salty sweater, consider a sodium pre-load: about 1,000–1,500 mg in 500 mL, 60–90 min before. Try it in training first.'});
+  if(sr>1.5)N.push({t:`At ~${fl(sr)}/h you’re a heavy sweater today. Weigh yourself before and after to check, and log it under Sweat tests.`});
+  if(hot&&min>=60)N.push({t:'Hot conditions push sweat losses up fast. Start well hydrated and front-load drinking a little.'});
+  // pre / post
+  out.pre=min>=90?`${fmt(1*wt)}–${fmt(2*wt)} g carbs 1–3 h before (1–2 g/kg).`:min>=60?'A 30–60 g carb snack about an hour before if you haven’t eaten in the last 3 hours.':'Nothing special. Train fed or fasted, whichever suits you.';
+  out.post=`${fmt(0.3*wt)} g protein soon after. If you train again within 8 h, take ${fmt(1.0*wt)}–${fmt(1.2*wt)} g carbs per hour for the first few hours; otherwise a normal meal is fine.`+(naH>0||min>=60?' Salt that meal.':'');
+  return out;
+}
+function dayPlan(sessions){
+  const wt=state.profile.weightKg||75;
+  const c=sessions.map(s=>({s,r:compute(Object.assign({mode:'steady'},s))})).filter(x=>x.r);
+  const min=c.reduce((a,x)=>a+x.r.min,0);
+  const load=c.reduce((a,x)=>a+x.r.min*(x.s.sport==='strength'?0.5:1),0);
+  const zAvg=min?c.reduce((a,x)=>a+x.r.zAvg*x.r.min,0)/min:1;
+  let band=load<45?[3,5]:load<90?[5,7]:load<180?[6,10]:load<270?[7,10]:[8,12];
+  const s=load<45?0.4:clamp((zAvg-1.5)/2.5,0,1);
+  const gkg=band[0]+(band[1]-band[0])*(0.2+0.6*s);
+  const strength=sessions.some(x=>x.sport==='strength'||x.sport==='hyrox');
+  return{c,min,band,gkg,carbs:gkg*wt,protein:(strength?1.6:1.4)*wt,during:c.reduce((a,x)=>a+x.r.carbTotal,0),na:c.reduce((a,x)=>a+x.r.naTotal,0),fluid:c.reduce((a,x)=>a+x.r.fluidTotal,0),two:c.length>1&&min>=90};
+}
+
+/* ---------- persistence ---------- */
+let docRef=null,saveTimer=null,writing=false,pending=false,acct=false;
+function chip(){
+  const el=$('#saveChip');
+  if(state.profile.example){el.className='chip ex';el.textContent='Example profile';return}
+  el.className='chip ok';el.textContent=acct?'Saved to your account':'Saved on this device';
+}
+function save(){
+  try{localStorage.setItem(LS_KEY,JSON.stringify(state))}catch(e){}
+  chip();clearTimeout(saveTimer);saveTimer=setTimeout(flush,900);
+}
+async function flush(){
+  if(!docRef)return;
+  if(writing){pending=true;return}
+  writing=true;
+  try{await docRef.set({state:JSON.stringify(state),updatedAt:Date.now()});acct=true}
+  catch(e){if(e&&(e.code==='invalid_argument'||e.code==='revoked'||e.code==='not_granted'||e.code==='capability_disabled')){docRef=null;acct=false}}
+  writing=false;chip();
+  if(pending){pending=false;flush()}
+}
+async function initDb(){
+  try{
+    if(!window.claude||typeof window.claude.use!=='function')return;
+    const [db,user]=await Promise.all([window.claude.use('db'),window.claude.use('user')]);
+    if(!db||!user)return;
+    const id=await user.id();if(!id)return;
+    const ref=db.doc('data/users/'+id+'/state');
+    const snap=await Promise.race([ref.get(),new Promise((_,rej)=>setTimeout(()=>rej({code:'timeout'}),10000))]);
+    docRef=ref;acct=true;
+    if(snap.exists){const d=snap.data();if(d&&typeof d.state==='string'){try{state=mergeState(JSON.parse(d.state));try{localStorage.setItem(LS_KEY,d.state)}catch(e){}renderAll()}catch(e){}}}
+    else if(!state.profile.example||!state.week.example||state.tests.length){flush()}
+    chip();
+  }catch(e){docRef=null;acct=false;chip()}
+}
+
+/* ---------- options ---------- */
+const sportOpts=sel=>Object.entries(SPORTS).map(([k,v])=>`<option value="${k}"${k===sel?' selected':''}>${v.label}</option>`).join('');
+const zoneOpts=sel=>[1,2,3,4,5].map(z=>`<option value="${z}"${z==sel?' selected':''}>${ZONES[z].n} · ${ZONES[z].name}</option>`).join('');
+const humOpts=sel=>Object.entries(HUM).map(([k,v])=>`<option value="${k}"${k===sel?' selected':''}>${v.label}</option>`).join('');
+const dayOpts=()=>DAYS.map((d,i)=>`<option value="${i}">${d}</option>`).join('');
+
+/* ---------- SESSION ---------- */
+function renderSessionInputs(){
+  const s=state.session;
+  $('#s-sport').innerHTML=sportOpts(s.sport);
+  $('#s-hum').innerHTML=humOpts(s.humidity);
+  $('#s-zone').innerHTML=zoneOpts(s.zone);
+  $('#s-temp-l').textContent=`Temp (${tU()})`;
+  $('#s-temp').value=Math.round(tOut(num(s.tempF)||65));
+  $('#s-min').value=s.minutes;
+  $('#m-steady').setAttribute('aria-pressed',s.mode==='steady');
+  $('#m-int').setAttribute('aria-pressed',s.mode==='intervals');
+  $('#steadyBox').hidden=s.mode!=='steady';
+  $('#intBox').hidden=s.mode!=='intervals';
+  if(!$('#s-day').options.length)$('#s-day').innerHTML=dayOpts();
+  renderSegs();
+}
+function segResolvedText(sg){
+  const r=resolveZone(sg.wt,sg.wz);
+  if(r.src==='hr')return `${esc(sg.wt)} bpm → ${ZONES[r.zone].n} ${ZONES[r.zone].name}`;
+  if(r.src==='pace')return `${esc(sg.wt)}${paceU()} → ${ZONES[r.zone].n} ${ZONES[r.zone].name}`;
+  if(r.src==='nohr')return 'Add your threshold HR in Profile to use heart rate targets.';
+  if(r.src==='nopace')return 'Add your threshold pace in Profile to use pace targets.';
+  return '';
+}
+function renderSegs(){
+  const list=$('#segList');
+  list.innerHTML=state.session.segments.map(sg=>{
+    const rz=resolveZone(sg.wt,sg.wz).zone;
+    return `<div class="segrow" data-id="${sg.id}" style="border-left-color:var(--z${rz})">
+      <div class="f"><label for="sg-l-${sg.id}">Block</label><input type="text" id="sg-l-${sg.id}" data-k="label" value="${esc(sg.label)}"></div>
+      <div class="f"><label for="sg-r-${sg.id}">Reps</label><input type="number" id="sg-r-${sg.id}" data-k="reps" min="1" value="${esc(sg.reps)}" inputmode="numeric"></div>
+      <div class="f wk"><label for="sg-w-${sg.id}">Work: min · zone</label><div class="pair"><input type="number" id="sg-w-${sg.id}" data-k="work" min="0" step="0.5" value="${esc(sg.work)}" inputmode="decimal" aria-label="Work minutes"><select data-k="wz" id="sg-wz-${sg.id}" aria-label="Work zone">${zoneOpts(sg.wz).replace(/ · [^<]+/g,'')}</select></div></div>
+      <div class="f rs"><label for="sg-s-${sg.id}">Recovery: min · zone</label><div class="pair"><input type="number" id="sg-s-${sg.id}" data-k="rest" min="0" step="0.5" value="${esc(sg.rest)}" inputmode="decimal" aria-label="Recovery minutes"><select data-k="rz" id="sg-rz-${sg.id}" aria-label="Recovery zone">${zoneOpts(sg.rz).replace(/ · [^<]+/g,'')}</select></div></div>
+      <button type="button" class="btn small ghost rm" data-rm="${sg.id}" aria-label="Remove block">✕</button>
+      <div class="f" style="grid-column:1/-1"><label for="sg-t-${sg.id}">Target (optional HR or pace for the work part)</label><input type="text" id="sg-t-${sg.id}" data-k="wt" value="${esc(sg.wt)}" placeholder="e.g. 165 or 6:50"></div>
+      <div class="resolved" data-res>${segResolvedText(sg)}</div>
+    </div>`}).join('');
+}
+function renderSessionOut(){
+  const s=state.session,r=compute(s),el=$('#sessionOut');
+  $('#s-zone-h').textContent=zoneHint(s.zone,s.sport);
+  $('#exProfileBanner').hidden=!state.profile.example;
+  if(!r){el.innerHTML='<div class="empty">Add a duration or at least one block to see fueling.</div>';return}
+  const zbar=[1,2,3,4,5].map(i=>r.z[i]?`<span style="width:${r.z[i]/r.min*100}%;background:var(--z${i})" title="${ZONES[i].n}: ${fmt(r.z[i])} min"></span>`:'').join('');
+  const zleg=[1,2,3,4,5].filter(i=>r.z[i]).map(i=>`<span><i class="zdot" style="background:var(--z${i})"></i>${ZONES[i].n} ${fmt(r.z[i])} min</span>`).join('');
+  const hrs=r.min>=60?`${Math.floor(r.min/60)} h ${String(Math.round(r.min%60)).padStart(2,'0')}`:`${fmt(r.min)} min`;
+  let mix='';
+  if(r.bottle){const b=r.bottle,inB=Math.min(b.cpb,b.keep),m=b.split?inB/1.8:inB,f=b.split?inB*0.8/1.8:0;
+    mix=`<div class="mix"><span class="lbl">Per ${imp()?'24 oz':'750 mL'} bottle · about ${b.bph.toFixed(1)} per hour</span>
+    ${inB>0?`${fmt(inB)} g carbs (${(inB/bottleMl()*100).toFixed(1)}%)`:'No carbs'}${b.napb>0?` + ${fmt(b.napb)} mg sodium`:''}${b.gelsPerH>0.05&&b.pct>8?` · plus ${b.gelsPerH.toFixed(1)} gels/h`:''}
+    <div class="hint">DIY: ${inB>0?(b.split?`${m.toFixed(0)} g maltodextrin + ${f.toFixed(0)} g fructose`:`${m.toFixed(0)} g maltodextrin or sugar`):'plain water'}${b.napb>0?` + ${(b.napb/393).toFixed(2)} g table salt`:''}</div></div>`}
+  el.innerHTML=`
+    <div class="res-head"><h2 class="num">${hrs} ${esc(SPORTS[r.sport].label.toLowerCase())}</h2><span class="muted num">avg ${ZONES[Math.round(r.zAvg)].n} (${r.zAvg.toFixed(1)}) · ${Math.round(tOut(r.tempF))}${tU()}</span></div>
+    <div class="zbar" aria-hidden="true">${zbar}</div><div class="zleg">${zleg}</div>
+    <div class="metrics">
+      <div class="metric" style="--c:var(--carb)"><span class="lbl">Carbs</span><div class="big">${r.carb.target}<small>g/h</small></div><div class="sub">${fmt(r.carbTotal)} g total${r.carb.hi>0?` · range ${r.carb.lo}–${r.carb.hi}`:''}</div></div>
+      <div class="metric" style="--c:var(--fluid)"><span class="lbl">Fluid</span><div class="big">${r.fluid>0?fmt(flOut(r.fluid)):'—'}${r.fluid>0?`<small>${flU()}/h</small>`:''}</div><div class="sub">${r.fluid>0?fl(r.fluidTotal)+' total':'Drink to thirst'}</div></div>
+      <div class="metric" style="--c:var(--sodium)"><span class="lbl">Sodium</span><div class="big">${r.naH>0?fmt(r.naH):'—'}${r.naH>0?'<small>mg/h</small>':''}</div><div class="sub">${r.naH>0?fmt(r.naTotal)+' mg total':'Salt your next meal'}</div></div>
+    </div>
+    <dl class="kv">
+      <dt>Estimated sweat rate</dt><dd>${fl(r.sr)}/h</dd>
+      <dt>Sweat lost</dt><dd>${fl(r.sweatTotal)}</dd>
+      <dt>Sodium lost in sweat</dt><dd>${fmt(r.naLoss*r.h)} mg</dd>
+      <dt>Projected body-weight change</dt><dd style="color:${r.defPct>2?'var(--warn)':'inherit'}">−${fmt(wtOut(r.deficit)*10)/10} ${wtU()} (${r.defPct.toFixed(1)}%)</dd>
+    </dl>
+    ${mix}
+    <div class="phase"><b>Before</b><span>${r.pre}</span><b>During</b><span>${r.carb.target>0?`Start fueling around 15–20 min in. Spread ${r.carb.target} g/h evenly, about ${Math.max(1,Math.round(r.carb.target/GEL*10)/10)} gels' worth per hour.`:'No carbs needed.'}${r.fluid>0?` Sip ${fmt(flOut(r.fluid/4))} ${flU()} every 15 min.`:''}</span><b>After</b><span>${r.post}</span></div>
+    ${r.notes.length?`<ul class="notes">${r.notes.map(n=>`<li class="${n.w?'w':''}">${n.t}</li>`).join('')}</ul>`:''}
+    <p class="src">Sweat from ${r.base.src}. Sodium from ${r.na.src}. ${state.profile.example?'<strong>Example profile.</strong> ':''}<button type="button" class="btn small ghost" data-goto="method">How this is calculated</button></p>`;
+}
+function bindSession(){
+  $('#s-sport').addEventListener('change',e=>{state.session.sport=e.target.value;save();renderSessionOut()});
+  $('#s-hum').addEventListener('change',e=>{state.session.humidity=e.target.value;save();renderSessionOut()});
+  $('#s-zone').addEventListener('change',e=>{state.session.zone=+e.target.value;save();renderSessionOut()});
+  $('#s-temp').addEventListener('input',e=>{if(e.target.value==='')return;state.session.tempF=tIn(num(e.target.value));save();renderSessionOut()});
+  $('#s-min').addEventListener('input',e=>{state.session.minutes=num(e.target.value);save();renderSessionOut()});
+  $$('[data-mode]').forEach(b=>b.addEventListener('click',()=>{state.session.mode=b.dataset.mode;save();renderSessionInputs();renderSessionOut()}));
+  const list=$('#segList');
+  const onSeg=e=>{const row=e.target.closest('.segrow');if(!row)return;const k=e.target.dataset.k;if(!k)return;
+    const sg=state.session.segments.find(x=>x.id===row.dataset.id);if(!sg)return;
+    sg[k]=(k==='label'||k==='wt')?e.target.value:(k==='wz'||k==='rz'?+e.target.value:num(e.target.value));
+    if(k==='wt'||k==='wz'){row.querySelector('[data-res]').innerHTML=segResolvedText(sg);row.style.borderLeftColor=`var(--z${resolveZone(sg.wt,sg.wz).zone})`}
+    save();renderSessionOut()};
+  list.addEventListener('input',onSeg);list.addEventListener('change',onSeg);
+  list.addEventListener('click',e=>{const b=e.target.closest('[data-rm]');if(!b)return;state.session.segments=state.session.segments.filter(x=>x.id!==b.dataset.rm);save();renderSegs();renderSessionOut()});
+  $('#addSeg').addEventListener('click',()=>{state.session.segments.push({id:uid(),label:'Block',reps:1,work:10,wz:2,wt:'',rest:0,rz:1});save();renderSegs();renderSessionOut()});
+  const presets={
+    track:()=>[{label:'Warm-up',reps:1,work:15,wz:2,rest:0,rz:1},{label:'800 m repeats',reps:6,work:3.5,wz:5,rest:2,rz:1},{label:'Cool-down',reps:1,work:12,wz:1,rest:0,rz:1}],
+    tempo:()=>[{label:'Easy miles',reps:1,work:80,wz:2,rest:0,rz:1},{label:'Tempo finish',reps:1,work:25,wz:3,rest:0,rz:1},{label:'Cool-down',reps:1,work:10,wz:1,rest:0,rz:1}],
+    bike:()=>[{label:'Warm-up',reps:1,work:15,wz:2,rest:0,rz:1},{label:'Sweet spot',reps:3,work:12,wz:3,rest:5,rz:1},{label:'Endurance',reps:1,work:30,wz:2,rest:0,rz:1}]};
+  $$('[data-preset]').forEach(b=>b.addEventListener('click',()=>{const k=b.dataset.preset;state.session.segments=presets[k]().map(x=>Object.assign({id:uid(),wt:''},x));
+    if(k==='bike'&&!/bike|trainer/.test(state.session.sport))state.session.sport='bike';
+    if(k!=='bike'&&state.session.sport!=='run')state.session.sport='run';
+    save();renderSessionInputs();renderSessionOut()}));
+  $('#toWeek').addEventListener('click',()=>{
+    const s=state.session,z=zoneMinutes(s),min=z.reduce((a,b)=>a+b,0);if(!min)return;
+    let zAvg=0;for(let i=1;i<=5;i++)zAvg+=i*z[i]/min;
+    const d=+$('#s-day').value;
+    if(state.week.example){state.week.example=false;state.week.days=[[],[],[],[],[],[],[]]}
+    state.week.days[d].push({id:uid(),sport:s.sport,minutes:Math.round(min),zone:clamp(Math.round(zAvg),1,5),tempF:num(s.tempF)||65,humidity:s.humidity});
+    save();renderWeek();const m=$('#toWeekMsg');m.textContent=`Added to ${DAYS[d]}.`;setTimeout(()=>{m.textContent=''},2500)});
+}
+
+/* ---------- WEEK ---------- */
+function renderWeek(){
+  $('#exWeekBanner').hidden=!state.week.example;
+  const plans=state.week.days.map(dayPlan);
+  const tot=plans.reduce((a,p)=>({min:a.min+p.min,during:a.during+p.during,na:a.na+p.na,fluid:a.fluid+p.fluid}),{min:0,during:0,na:0,fluid:0});
+  // DIY batch
+  let malto=0,fruc=0,salt=0;
+  plans.forEach(p=>p.c.forEach(x=>{const g=x.r.carbTotal;if(x.r.carb.target>=60){malto+=g/1.8;fruc+=g*0.8/1.8}else malto+=g;salt+=x.r.naTotal/393}));
+  const maxC=Math.max(1,...plans.map(p=>p.carbs));
+  const hrs=`${Math.floor(tot.min/60)} h ${String(Math.round(tot.min%60)).padStart(2,'0')}`;
+  $('#weekSummary').innerHTML=`<div class="card stack">
+    <div class="res-head"><h2>This week</h2><span class="muted">Daily carb targets, g</span></div>
+    <div class="sumgrid">
+      <div class="metric" style="--c:var(--accent)"><span class="lbl">Training</span><div class="big num">${hrs}</div><div class="sub">${plans.reduce((a,p)=>a+p.c.length,0)} sessions</div></div>
+      <div class="metric" style="--c:var(--carb)"><span class="lbl">Carbs in sessions</span><div class="big">${fmt(tot.during)}<small>g</small></div><div class="sub">≈ ${fmt(tot.during/GEL)} gels’ worth</div></div>
+      <div class="metric" style="--c:var(--fluid)"><span class="lbl">Fluid in sessions</span><div class="big">${fmt(flOut(tot.fluid))}<small>${flU()}</small></div><div class="sub">≈ ${fmt(tot.fluid*1000/bottleMl())} bottles</div></div>
+      <div class="metric" style="--c:var(--sodium)"><span class="lbl">Sodium in sessions</span><div class="big">${fmt(tot.na)}<small>mg</small></div><div class="sub">${(tot.na/393).toFixed(1)} g table salt</div></div>
+    </div>
+    <div class="bars" role="img" aria-label="Daily carb targets">${plans.map((p,i)=>`<div><span class="v">${fmt(p.carbs)}</span><span class="b" style="height:${Math.max(4,p.carbs/maxC*80)}px"></span><span>${DAYS[i]}</span></div>`).join('')}</div>
+    <div class="mix"><span class="lbl">DIY batch for the week</span>${fmt(malto)} g maltodextrin${fruc>0?` + ${fmt(fruc)} g fructose`:''} + ${(salt).toFixed(1)} g table salt
+      <div class="hint">Assumes every in-session carb comes from your own mix. Subtract any gels or food you plan to use.</div></div>
+  </div>`;
+  $('#days').innerHTML=plans.map((p,i)=>{
+    const sess=state.week.days[i];
+    const rows=sess.length?sess.map(x=>{const r=p.c.find(c=>c.s.id===x.id);const rr=r&&r.r;
+      return `<div class="sess-i"><i style="background:var(--z${x.zone})"></i><div>${esc(SPORTS[x.sport]?SPORTS[x.sport].label:'Session')} · ${fmt(x.minutes)} min · ${ZONES[x.zone].n}
+        <small>${rr?`${rr.carb.target} g/h carbs · ${rr.fluid>0?fl(rr.fluid)+'/h':'drink to thirst'} · ${rr.naH>0?fmt(rr.naH)+' mg/h Na':'no added Na'} · ${Math.round(tOut(x.tempF))}${tU()}`:''}</small></div>
+        <button type="button" class="x" data-del="${i}:${x.id}" aria-label="Remove session">✕</button></div>`}).join(''):'<p class="muted" style="font-size:13px">Rest day</p>';
+    return `<div class="day">
+      <div class="day-h"><h3>${DAYS[i]}</h3><span class="muted num" style="font-size:12.5px">${p.min?fmt(p.min)+' min':'Rest'}</span></div>
+      <div class="day-t">
+        <div><span class="muted">Carbs</span><b>${fmt(p.carbs)} g</b><span class="muted">${p.gkg.toFixed(1)} g/kg · ${p.band[0]}–${p.band[1]}</span></div>
+        <div><span class="muted">Protein</span><b>${fmt(p.protein)} g</b><span class="muted">${(p.protein/(state.profile.weightKg||75)).toFixed(1)} g/kg</span></div>
+      </div>
+      <div class="sess">${rows}</div>
+      ${p.two?'<p class="hint" style="margin:0">Two sessions today: refuel with 1–1.2 g/kg carbs per hour between them.</p>':''}
+      ${p.during>0?`<p class="hint" style="margin:0">${fmt(p.during)} g of today’s carbs are taken during training.</p>`:''}
+      <details class="add"><summary>+ Add session</summary>
+        <div class="addform" data-day="${i}">
+          <select data-f="sport" aria-label="Sport">${sportOpts('run')}</select>
+          <input type="number" data-f="minutes" placeholder="Minutes" aria-label="Minutes" inputmode="numeric">
+          <select data-f="zone" aria-label="Zone">${zoneOpts(2)}</select>
+          <input type="number" data-f="temp" placeholder="Temp ${tU()}" aria-label="Temperature" value="${Math.round(tOut(65))}" inputmode="decimal">
+          <button type="button" class="btn small primary" data-addday="${i}">Add to ${DAYS[i]}</button>
+        </div></details>
+    </div>`}).join('');
+}
+function bindWeek(){
+  $('#days').addEventListener('click',e=>{
+    const d=e.target.closest('[data-del]');
+    if(d){const [i,id]=d.dataset.del.split(':');state.week.days[+i]=state.week.days[+i].filter(x=>x.id!==id);state.week.example=false;save();renderWeek();return}
+    const a=e.target.closest('[data-addday]');
+    if(a){const i=+a.dataset.addday,f=a.closest('.addform');const g=k=>f.querySelector(`[data-f="${k}"]`).value;
+      const m=num(g('minutes'));if(!(m>0)){f.querySelector('[data-f="minutes"]').focus();return}
+      if(state.week.example){state.week.example=false}
+      state.week.days[i].push({id:uid(),sport:g('sport'),minutes:m,zone:+g('zone'),tempF:tIn(num(g('temp'))||tOut(65)),humidity:'normal'});
+      save();renderWeek();const det=$$('#days details.add')[i];if(det)det.open=true}
+  });
+  $('#clearWeek').addEventListener('click',()=>{state.week={example:false,days:[[],[],[],[],[],[],[]]};save();renderWeek()});
+}
+
+/* ---------- TESTS ---------- */
+function testDraft(){
+  const tempV=$('#t-temp').value;
+  return{date:$('#t-date').value,sport:$('#t-sport').value,minutes:num($('#t-min').value),zone:+$('#t-zone').value,
+    tempF:tempV===''?65:tIn(num(tempV)),humidity:$('#t-hum').value,
+    preKg:wtIn(num($('#t-pre').value)),postKg:wtIn(num($('#t-post').value)),drankL:flIn(num($('#t-drank').value)),peeL:flIn(num($('#t-pee').value))};
+}
+function renderTestsInputs(){
+  $('#t-sport').innerHTML=sportOpts('run');$('#t-zone').innerHTML=zoneOpts(2);$('#t-hum').innerHTML=humOpts('normal');
+  if(!$('#t-date').value){const d=new Date();$('#t-date').value=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+  $('#t-temp-l').textContent=`Temp (${tU()})`;$('#t-pre-l').textContent=`Weight before (${wtU()})`;$('#t-post-l').textContent=`Weight after (${wtU()})`;
+  $('#t-drank-l').textContent=`Drank during (${flU()})`;$('#t-pee-l').textContent=`Peed during (${flU()})`;
+  updateLive();
+}
+function updateLive(){const r=testRate(testDraft());$('#t-live').textContent=r?`${fl(r)}/h`:'—'}
+function renderTests(){
+  const el=$('#testsOut'),b=testsBaseline();
+  if(!state.tests.length){el.innerHTML='<div class="empty">No tests yet. Your first one only takes a scale and an hour of training.</div>';return}
+  const rows=state.tests.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')).map(t=>{const r=testRate(t),n=testNorm(t);
+    return `<tr><td>${esc(t.date||'')}</td><td>${esc(SPORTS[t.sport]?SPORTS[t.sport].label:'')}</td><td>${fmt(t.minutes)} min</td><td>${Math.round(tOut(t.tempF))}${tU()}</td><td>${r?fl(r)+'/h':'—'}</td><td>${n?fl(n)+'/h':'—'}</td><td><button type="button" class="btn small ghost" data-tdel="${t.id}" aria-label="Delete test">✕</button></td></tr>`}).join('');
+  const using=state.profile.sweatMode==='tests';
+  el.innerHTML=`<div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Sport</th><th>Time</th><th>Temp</th><th>Measured</th><th>Adjusted*</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
+   <p class="hint">*Adjusted to a steady run at 65°F so tests can be compared. Average: <strong>${b?fl(b.avg)+'/h':'—'}</strong>.</p>
+   <div class="row" style="align-items:center">${using?'<span class="chip ok">Your sweat rate comes from these tests</span>':`<button type="button" class="btn primary" id="useTests">Use these tests for my sweat rate</button>`}</div>`;
+}
+function bindTests(){
+  ['#t-min','#t-temp','#t-pre','#t-post','#t-drank','#t-pee','#t-zone','#t-sport','#t-hum'].forEach(s=>$(s).addEventListener('input',updateLive));
+  $('#t-add').addEventListener('click',()=>{
+    const t=testDraft(),r=testRate(t),err=$('#t-err');
+    if(!(t.minutes>0)||!(t.preKg>0)||!(t.postKg>0)){err.textContent='Enter the duration and both weights to log a test.';return}
+    if(!r){err.textContent='Those numbers give zero or negative sweat loss. Check the weights and the amount you drank.';return}
+    if(r>3.5){err.textContent=`That works out to ${fl(r)}/h, which is higher than almost anyone sweats. Check the units and the weights.`;return}
+    err.textContent='';t.id=uid();state.tests.push(t);
+    ['#t-min','#t-pre','#t-post','#t-drank','#t-pee'].forEach(s=>$(s).value='');updateLive();
+    save();renderTests();renderProfile();renderSessionOut();renderWeek()});
+  $('#testsOut').addEventListener('click',e=>{
+    const d=e.target.closest('[data-tdel]');if(d){state.tests=state.tests.filter(t=>t.id!==d.dataset.tdel);if(!state.tests.length&&state.profile.sweatMode==='tests')state.profile.sweatMode='feel';save();renderTests();renderProfile();renderSessionOut();renderWeek();return}
+    if(e.target.id==='useTests'){state.profile.sweatMode='tests';state.profile.example=false;save();renderTests();renderProfile();renderSessionOut();renderWeek()}
+  });
+}
+
+/* ---------- PROFILE ---------- */
+function renderProfile(){
+  const p=state.profile;
+  $('#p-wt-l').textContent=`Body weight (${wtU()})`;
+  if(document.activeElement!==$('#p-wt'))$('#p-wt').value=Math.round(wtOut(p.weightKg)*10)/10;
+  $('#p-gut').innerHTML=GUT.map((g,i)=>`<option value="${i}"${i===p.gut?' selected':''}>${g.label}</option>`).join('');
+  $('#saltChoices').innerHTML=SALT.map((s,i)=>`<button type="button" class="choice" data-salt="${i+1}" aria-pressed="${p.salt===i+1&&!(p.naLab>0)}"><span class="k" style="color:var(--sodium)">${i+1}</span><span><span class="t">${s.label}</span><br><span class="d">${s.hint}</span></span></button>`).join('');
+  if(document.activeElement!==$('#p-na'))$('#p-na').value=p.naLab||'';
+  $('#sweatChoices').innerHTML=SWEAT_FEEL.map((s,i)=>`<button type="button" class="choice" data-feel="${i}" aria-pressed="${p.sweatMode==='feel'&&p.sweatFeel===i}"><span class="k" style="color:var(--fluid)">${i+1}</span><span><span class="t">${esc(s.label)}</span><br><span class="d">${s.hint} · ≈${fl(s.lph)}/h</span></span></button>`).join('');
+  $('#p-sr-l').textContent=`I know my sweat rate (${flU()}/h)`;
+  if(document.activeElement!==$('#p-sr'))$('#p-sr').value=p.sweatLph?Math.round(flOut(p.sweatLph)):'';
+  const b=testsBaseline();
+  $('#p-tests-opt').innerHTML=b?`<button type="button" class="choice" data-usetests aria-pressed="${p.sweatMode==='tests'}"><span class="t">Use my ${b.n} sweat test${b.n>1?'s':''}</span><span class="d">≈${fl(b.avg)}/h adjusted average</span></button>`:`<span class="hint">Log sweat tests to use your measured rate instead.</span>`;
+  $('#p-sweat-src').textContent=`Currently using ${sweatBase().src}.`;
+  $('#p-pace-l').textContent=`Threshold run pace (min${paceU()})`;
+  if(document.activeElement!==$('#p-lthr'))$('#p-lthr').value=p.lthr||'';
+  if(document.activeElement!==$('#p-pace'))$('#p-pace').value=p.paceSecKm?fmtPace(p.paceSecKm):'';
+  const anyZ=p.lthr||p.paceSecKm;
+  $('#zoneTable').innerHTML=anyZ?`<div class="tbl-wrap"><table><thead><tr><th>Zone</th><th>Your ranges</th></tr></thead><tbody>${[1,2,3,4,5].map(z=>`<tr><td><i class="zdot" style="background:var(--z${z})"></i>${ZONES[z].n} ${ZONES[z].name}</td><td>${zoneHint(z,'run')}</td></tr>`).join('')}</tbody></table></div>`:'';
+  $('#storeNote').textContent=acct?'Your profile, week and tests are saved privately to your Claude account. Nobody else who opens this page can see them.':'Your profile, week and tests are saved in this browser only, nothing is sent anywhere. Download a backup to move them to another device.';
+}
+function touch(){if(state.profile.example){state.profile.example=false}}
+function bindProfile(){
+  $('#p-wt').addEventListener('input',e=>{const v=num(e.target.value);if(v>0){state.profile.weightKg=wtIn(v);touch();save();renderSessionOut();renderWeek()}});
+  $('#p-gut').addEventListener('change',e=>{state.profile.gut=+e.target.value;touch();save();renderSessionOut();renderWeek()});
+  $('#saltChoices').addEventListener('click',e=>{const b=e.target.closest('[data-salt]');if(!b)return;state.profile.salt=+b.dataset.salt;state.profile.naLab=null;touch();save();renderProfile();renderSessionOut();renderWeek()});
+  $('#p-na').addEventListener('input',e=>{const v=num(e.target.value);state.profile.naLab=v>=100&&v<=4000?v:null;touch();save();
+    $$('#saltChoices .choice').forEach(c=>c.setAttribute('aria-pressed',String(!state.profile.naLab&&+c.dataset.salt===state.profile.salt)));renderSessionOut();renderWeek()});
+  $('#sweatChoices').addEventListener('click',e=>{const b=e.target.closest('[data-feel]');if(!b)return;state.profile.sweatFeel=+b.dataset.feel;state.profile.sweatMode='feel';touch();save();renderProfile();renderSessionOut();renderWeek();renderTests()});
+  $('#p-sr').addEventListener('input',e=>{const v=flIn(num(e.target.value));if(v>0.1&&v<4){state.profile.sweatLph=v;state.profile.sweatMode='number'}else if(e.target.value===''){state.profile.sweatLph=null;if(state.profile.sweatMode==='number')state.profile.sweatMode='feel'}
+    touch();save();$$('#sweatChoices .choice').forEach(c=>c.setAttribute('aria-pressed',String(state.profile.sweatMode==='feel'&&+c.dataset.feel===state.profile.sweatFeel)));
+    const u=$('[data-usetests]');if(u)u.setAttribute('aria-pressed',String(state.profile.sweatMode==='tests'));
+    $('#p-sweat-src').textContent=`Currently using ${sweatBase().src}.`;renderSessionOut();renderWeek();renderTests()});
+  $('#p-tests-opt').addEventListener('click',e=>{if(!e.target.closest('[data-usetests]'))return;state.profile.sweatMode='tests';touch();save();renderProfile();renderSessionOut();renderWeek();renderTests()});
+  $('#p-lthr').addEventListener('input',e=>{const v=num(e.target.value);state.profile.lthr=v>=100&&v<=230?v:null;touch();save();renderProfile();renderSessionOut();renderSegs()});
+  $('#p-pace').addEventListener('input',e=>{const v=parsePace(e.target.value);state.profile.paceSecKm=v||null;touch();save();renderProfile();renderSessionOut();renderSegs()});
+  $('#clearBox').addEventListener('click',e=>{
+    const box=$('#clearBox');
+    if(e.target.id==='clearAll'){box.innerHTML='<span class="confirm"><span>Erase your profile, week and tests?</span><button type="button" class="btn" id="clearYes" style="color:var(--warn)">Erase everything</button><button type="button" class="btn ghost" id="clearNo">Cancel</button></span>';return}
+    if(e.target.id==='clearNo'){box.innerHTML='<button type="button" class="btn" id="clearAll">Erase all my data</button>';return}
+    if(e.target.id==='clearYes'){const u=state.units;state=defaults();state.units=u;try{localStorage.removeItem(LS_KEY)}catch(err){}
+      if(docRef)flush();box.innerHTML='<button type="button" class="btn" id="clearAll">Erase all my data</button>';renderAll()}
+  });
+}
+
+/* ---------- tabs / units ---------- */
+const TABS=['session','week','tests','profile','method'];
+function showTab(t){if(!TABS.includes(t))t='session';
+  $$('[data-tab]').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.tab===t)));
+  $$('[data-panel]').forEach(p=>p.hidden=p.dataset.panel!==t);
+  try{localStorage.setItem(LS_KEY+'-tab',t)}catch(e){}
+}
+function renderUnits(){$('#u-imp').setAttribute('aria-pressed',String(imp()));$('#u-met').setAttribute('aria-pressed',String(!imp()))}
+function renderAll(){renderUnits();renderSessionInputs();renderSessionOut();renderWeek();renderTestsInputs();renderTests();renderProfile();chip()}
+
+$$('[data-tab]').forEach(b=>b.addEventListener('click',()=>{showTab(b.dataset.tab);if(location.hash!=='#'+b.dataset.tab)try{history.replaceState(null,'','#'+b.dataset.tab)}catch(e){}}));
+document.addEventListener('click',e=>{const g=e.target.closest('[data-goto]');if(g){showTab(g.dataset.goto);window.scrollTo({top:0})}});
+$$('[data-units]').forEach(b=>b.addEventListener('click',()=>{state.units=b.dataset.units;save();renderAll()}));
+window.addEventListener('hashchange',()=>showTab(location.hash.slice(1)));
+
+
+/* ---------- backup ---------- */
+$('#exportBtn').addEventListener('click',()=>{
+  const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='sweat-fuel-backup-'+new Date().toISOString().slice(0,10)+'.json';
+  document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  $('#backupMsg').textContent='Backup downloaded.';
+});
+$('#importFile').addEventListener('change',e=>{
+  const f=e.target.files&&e.target.files[0];if(!f)return;
+  const rd=new FileReader();
+  rd.onload=()=>{try{const raw=JSON.parse(rd.result);if(!raw||!raw.profile)throw 0;state=mergeState(raw);save();renderAll();$('#backupMsg').textContent='Backup restored.'}
+    catch(err){$('#backupMsg').textContent='That file isn’t a planner backup. Pick a file this page downloaded.'}
+    e.target.value=''};
+  rd.readAsText(f);
+});
+if('serviceWorker' in navigator&&location.protocol==='https:'){navigator.serviceWorker.register('sw.js').catch(()=>{})}
+
+bindSession();bindWeek();bindTests();bindProfile();
+renderAll();
+let start=location.hash.slice(1);if(!TABS.includes(start)){try{start=localStorage.getItem(LS_KEY+'-tab')||'session'}catch(e){start='session'}}
+showTab(start);
+initDb();
+window.__fuel={compute,dayPlan,state:()=>state,setState:s=>{state=mergeState(s);renderAll()}};
+})();
+</script>
+
+</body>
+</html>
